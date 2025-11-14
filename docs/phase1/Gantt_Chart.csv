@@ -1,0 +1,25 @@
+Task Name,Start Date,End Date,Duration (days),Phase,Assigned To,Status
+Team Formation,2025-09-01,2025-09-05,5,Phase 1,All,Complete
+Initial Research,2025-09-01,2025-09-10,10,Phase 1,All,Complete
+Proposal Writing,2025-09-08,2025-09-18,11,Phase 1,All,Complete
+Phase 1 Submission,2025-09-21,2025-09-21,1,Phase 1,All,Complete
+Requirements Elicitation,2025-09-22,2025-10-05,14,Phase 2,All,Pending
+Use Case Modeling,2025-10-01,2025-10-10,10,Phase 2,Member 1,Pending
+Requirements Specifications,2025-10-08,2025-10-17,10,Phase 2,Member 2,Pending
+Phase 2 Submission,2025-10-19,2025-10-19,1,Phase 2,All,Pending
+Activity Diagrams,2025-10-20,2025-10-26,7,Phase 3,Member 1,Pending
+Class Diagrams,2025-10-24,2025-10-31,8,Phase 3,Member 2,Pending
+Sequence Diagrams,2025-10-28,2025-11-01,5,Phase 3,Member 3,Pending
+Phase 3 Submission,2025-11-02,2025-11-02,1,Phase 3,All,Pending
+Architecture Design,2025-11-03,2025-11-06,4,Phase 4,Member 2,Pending
+Database Design,2025-11-03,2025-11-06,4,Phase 4,Member 2,Pending
+UI/UX Mockups,2025-11-04,2025-11-08,5,Phase 4,Member 3,Pending
+Phase 4 Submission,2025-11-09,2025-11-09,1,Phase 4,All,Pending
+Backend Development,2025-10-20,2025-11-14,26,Phase 5,Member 2,Pending
+Frontend Development,2025-10-27,2025-11-14,19,Phase 5,Member 1,Pending
+AI Integration,2025-11-01,2025-11-12,12,Phase 5,Member 3,Pending
+Testing,2025-11-10,2025-11-15,6,Phase 5,All,Pending
+Phase 5 Submission,2025-11-16,2025-11-16,1,Phase 5,All,Pending
+Report Compilation,2025-11-13,2025-11-16,4,Final,All,Pending
+Presentation Preparation,2025-11-15,2025-11-16,2,Final,All,Pending
+Live Demo & Presentation,2025-11-17,2025-11-21,5,Final,All,Pending
