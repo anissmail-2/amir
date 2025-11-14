@@ -39,7 +39,7 @@ amir/
 | Phase | Deliverable | Due Date | Status |
 |-------|------------|----------|--------|
 | Phase 1 | Project Proposal | Sep 21, 2025 | ✅ Complete |
-| Phase 2 | Requirements Engineering | Oct 19, 2025 | 🔄 Pending |
+| Phase 2 | Requirements Engineering | Oct 19, 2025 | ✅ Complete |
 | Phase 3 | System Analysis | Nov 2, 2025 | 🔄 Pending |
 | Phase 4 | System Design | Nov 9, 2025 | 🔄 Pending |
 | Phase 5 | Implementation & Testing | Nov 16, 2025 | 🔄 Pending |
@@ -86,7 +86,7 @@ amir/
 ## 📖 Documentation
 
 - [Phase 1: Project Proposal](docs/phase1/Phase1_Project_Proposal.md)
-- Phase 2: Requirements (Coming Soon)
+- [Phase 2: Requirements Engineering](docs/phase2/Phase2_Requirements_Engineering.md)
 - Phase 3: Analysis Models (Coming Soon)
 - Phase 4: Design Specifications (Coming Soon)
 - Phase 5: Implementation Guide (Coming Soon)

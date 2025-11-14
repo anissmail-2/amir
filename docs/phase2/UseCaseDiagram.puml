@@ -1,0 +1,212 @@
+@startuml SUFMS_UseCase_Diagram
+title Smart Urban Farming Management System - Use Case Diagram
+
+' Actors
+actor "Urban Farmer" as Farmer #lightblue
+actor "Home Gardener" as Gardener #lightgreen
+actor "Agricultural Consultant" as Consultant #lightyellow
+actor "Consumer/Buyer" as Consumer #lightpink
+actor "Restaurant Owner" as Restaurant #lightcoral
+actor "System Administrator" as Admin #lightgray
+
+' External Systems
+actor "IoT Sensor" as Sensor <<External System>> #technology
+actor "Weather API" as Weather <<External System>> #technology
+actor "Payment Gateway" as Payment <<External System>> #technology
+actor "AI/ML Service" as AI <<External System>> #technology
+
+rectangle "Smart Urban Farming Management System" {
+
+  ' User Management Package
+  package "User Management" {
+    usecase "Register Account" as UC001
+    usecase "Login" as UC002
+    usecase "Manage Profile" as UC003
+    usecase "Reset Password" as UC004
+  }
+
+  ' Farm Management Package
+  package "Farm Management" {
+    usecase "Create Farm" as UC005
+    usecase "Manage Crops" as UC006
+    usecase "Plan Crop Rotation" as UC007
+    usecase "Schedule Tasks" as UC008
+  }
+
+  ' Monitoring Package
+  package "Monitoring & Sensors" {
+    usecase "Register Sensor" as UC009
+    usecase "View Real-Time Data" as UC010
+    usecase "View Historical Data" as UC011
+    usecase "Configure Alerts" as UC012
+    usecase "Receive Notifications" as UC013
+  }
+
+  ' AI Features Package
+  package "AI-Powered Features" {
+    usecase "Get Crop Recommendations" as UC014
+    usecase "Detect Pest/Disease" as UC015
+    usecase "Generate Irrigation Schedule" as UC016
+    usecase "Predict Yield" as UC017
+    usecase "Chat with AI Assistant" as UC018
+  }
+
+  ' Resource Management Package
+  package "Resource Management" {
+    usecase "Track Water Usage" as UC019
+    usecase "Log Fertilizer Application" as UC020
+    usecase "Track Expenses" as UC021
+  }
+
+  ' Marketplace Package
+  package "Marketplace" {
+    usecase "List Product" as UC022
+    usecase "Search Products" as UC023
+    usecase "Purchase Product" as UC024
+    usecase "Process Payment" as UC025
+    usecase "Manage Orders" as UC026
+    usecase "Rate/Review" as UC027
+  }
+
+  ' Analytics Package
+  package "Analytics & Reporting" {
+    usecase "View Farm Dashboard" as UC028
+    usecase "Generate Reports" as UC029
+    usecase "View Sustainability Metrics" as UC030
+  }
+
+  ' Community Package
+  package "Knowledge Hub" {
+    usecase "Browse Educational Content" as UC031
+    usecase "Participate in Forum" as UC032
+  }
+
+  ' Administration Package
+  package "System Administration" {
+    usecase "Manage Users" as UC033
+    usecase "Moderate Content" as UC034
+    usecase "Monitor System Health" as UC035
+  }
+}
+
+' User Management Relationships
+Farmer --> UC001
+Gardener --> UC001
+Consumer --> UC001
+Restaurant --> UC001
+Consultant --> UC001
+
+Farmer --> UC002
+Gardener --> UC002
+Consumer --> UC002
+Restaurant --> UC002
+Consultant --> UC002
+Admin --> UC002
+
+Farmer --> UC003
+Gardener --> UC003
+Consumer --> UC003
+
+Farmer --> UC004
+
+' Farm Management Relationships
+Farmer --> UC005
+Gardener --> UC005
+
+Farmer --> UC006
+Gardener --> UC006
+
+Farmer --> UC007
+
+Farmer --> UC008
+Gardener --> UC008
+
+' Monitoring Relationships
+Farmer --> UC009
+Farmer --> UC010
+Gardener --> UC010
+
+Farmer --> UC011
+Consultant --> UC011
+
+Farmer --> UC012
+
+Farmer --> UC013
+Gardener --> UC013
+
+Sensor --> UC010 : transmits data
+
+' AI Features Relationships
+Farmer --> UC014
+Gardener --> UC014
+
+Farmer --> UC015
+Gardener --> UC015
+
+Farmer --> UC016
+
+Farmer --> UC017
+
+Farmer --> UC018
+Gardener --> UC018
+
+AI --> UC014 : provides
+AI --> UC015 : provides
+AI --> UC016 : provides
+AI --> UC017 : provides
+AI --> UC018 : provides
+
+Weather --> UC016 : provides data
+
+' Resource Management Relationships
+Farmer --> UC019
+Farmer --> UC020
+Farmer --> UC021
+
+' Marketplace Relationships
+Farmer --> UC022
+Farmer --> UC026
+
+Consumer --> UC023
+Restaurant --> UC023
+
+Consumer --> UC024
+Restaurant --> UC024
+
+Payment --> UC025 : processes
+
+Consumer --> UC027
+Restaurant --> UC027
+
+' Analytics Relationships
+Farmer --> UC028
+Consultant --> UC028
+
+Farmer --> UC029
+Consultant --> UC029
+
+Farmer --> UC030
+
+' Community Relationships
+Farmer --> UC031
+Gardener --> UC031
+Consumer --> UC031
+
+Farmer --> UC032
+Gardener --> UC032
+
+' Administration Relationships
+Admin --> UC033
+Admin --> UC034
+Admin --> UC035
+
+' Include Relationships
+UC024 ..> UC025 : <<include>>
+UC013 ..> UC012 : <<include>>
+UC010 ..> UC009 : <<include>>
+
+' Extend Relationships
+UC015 ..> UC008 : <<extend>>
+UC016 ..> UC013 : <<extend>>
+
+@enduml
