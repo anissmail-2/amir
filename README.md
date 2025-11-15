@@ -41,7 +41,7 @@ amir/
 | Phase 1 | Project Proposal | Sep 21, 2025 | ✅ Complete |
 | Phase 2 | Requirements Engineering | Oct 19, 2025 | ✅ Complete |
 | Phase 3 | System Analysis | Nov 2, 2025 | ✅ Complete |
-| Phase 4 | System Design | Nov 9, 2025 | 🔄 Pending |
+| Phase 4 | System Design | Nov 9, 2025 | ✅ Complete |
 | Phase 5 | Implementation & Testing | Nov 16, 2025 | 🔄 Pending |
 | Final | Live Demo & Presentation | Nov 17-21, 2025 | 🔄 Pending |
 
@@ -88,7 +88,7 @@ amir/
 - [Phase 1: Project Proposal](docs/phase1/Phase1_Project_Proposal.md)
 - [Phase 2: Requirements Engineering](docs/phase2/Phase2_Requirements_Engineering.md)
 - [Phase 3: System Analysis (UML Diagrams)](docs/phase3/Phase3_System_Analysis.md)
-- Phase 4: Design Specifications (Coming Soon)
+- [Phase 4: System Design](docs/phase4/Phase4_System_Design.md)
 - Phase 5: Implementation Guide (Coming Soon)
 
 ## 🚀 Getting Started (Phase 5)
