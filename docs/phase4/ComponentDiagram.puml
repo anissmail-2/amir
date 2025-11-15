@@ -1,0 +1,616 @@
+@startuml SUFMS_Component_Diagram
+title Smart Urban Farming Management System - Component Diagram
+
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+' ========== CLIENT TIER COMPONENTS ==========
+package "Client Tier" <<Cloud>> {
+
+  component [Web Application\n(React.js)] as WebApp {
+    portin " " as web_in
+    portout " " as web_out
+  }
+
+  component [Mobile Application\n(React Native)] as MobileApp {
+    portin " " as mobile_in
+    portout " " as mobile_out
+  }
+
+  note right of WebApp
+    **Responsibilities:**
+    - User interface rendering
+    - Client-side state management (Redux)
+    - Form validation
+    - Real-time data visualization
+    - WebSocket client for live updates
+  end note
+
+  note right of MobileApp
+    **Responsibilities:**
+    - Native mobile UI
+    - Offline-first data sync
+    - Push notification handling
+    - Camera integration (pest detection)
+    - GPS location services
+  end note
+}
+
+' ========== API GATEWAY COMPONENT ==========
+component [API Gateway\n(Express.js)] as Gateway {
+  portin " " as gateway_in
+  portout " " as gateway_out
+}
+
+web_out --> gateway_in : HTTPS
+mobile_out --> gateway_in : HTTPS
+
+note right of Gateway
+  **Responsibilities:**
+  - Request routing
+  - Load balancing
+  - JWT authentication
+  - Rate limiting
+  - API versioning (/v1/*, /v2/*)
+  - Request/response logging
+  - CORS handling
+  - SSL/TLS termination
+end note
+
+' ========== AUTHENTICATION & AUTHORIZATION ==========
+package "Identity & Access Management" {
+
+  component [Authentication Service] as AuthService {
+    portin " " as auth_in
+    portout " " as auth_out
+  }
+
+  component [Authorization Service] as AuthzService {
+    portin " " as authz_in
+  }
+
+  note bottom of AuthService
+    **Responsibilities:**
+    - User login/logout
+    - JWT token generation
+    - Password hashing (bcrypt)
+    - Token refresh
+    - Session management
+    - OAuth integration (Google, Facebook)
+  end note
+
+  note bottom of AuthzService
+    **Responsibilities:**
+    - Role-based access control (RBAC)
+    - Permission checking
+    - Resource ownership validation
+  end note
+}
+
+gateway_out --> auth_in
+gateway_out --> authz_in
+
+' ========== USER MANAGEMENT SUBSYSTEM ==========
+package "User Management Subsystem" {
+
+  component [User Profile Service] as UserService {
+    portin " " as user_in
+    portout " " as user_out
+  }
+
+  component [Farmer Profile Service] as FarmerService {
+    portin " " as farmer_in
+  }
+
+  component [Consumer Profile Service] as ConsumerService {
+    portin " " as consumer_in
+  }
+
+  note bottom of UserService
+    **Responsibilities:**
+    - User CRUD operations
+    - Profile updates
+    - User search
+    - Account verification
+    - Password reset
+  end note
+}
+
+gateway_out --> user_in
+gateway_out --> farmer_in
+gateway_out --> consumer_in
+
+' ========== FARM MANAGEMENT SUBSYSTEM ==========
+package "Farm Management Subsystem" {
+
+  component [Farm Service] as FarmService {
+    portin " " as farm_in
+    portout " " as farm_out
+  }
+
+  component [Crop Service] as CropService {
+    portin " " as crop_in
+    portout " " as crop_out
+  }
+
+  component [Task Scheduler] as TaskService {
+    portin " " as task_in
+    portout " " as task_out
+  }
+
+  component [Planting Calendar] as CalendarService {
+    portin " " as calendar_in
+  }
+
+  note bottom of FarmService
+    **Responsibilities:**
+    - Farm registration
+    - Farm location (geocoding)
+    - Farm size & type management
+    - Farm photo uploads (S3)
+  end note
+
+  note bottom of CropService
+    **Responsibilities:**
+    - Crop lifecycle tracking
+    - Planting/harvesting dates
+    - Crop health monitoring
+    - Yield recording
+  end note
+
+  note bottom of TaskService
+    **Responsibilities:**
+    - Task creation/assignment
+    - Task scheduling (cron jobs)
+    - Task completion tracking
+    - Task reminders
+  end note
+}
+
+gateway_out --> farm_in
+gateway_out --> crop_in
+gateway_out --> task_in
+gateway_out --> calendar_in
+
+' ========== IoT MONITORING SUBSYSTEM ==========
+package "IoT Monitoring Subsystem" {
+
+  component [Sensor Data Ingestion] as SensorIngestion {
+    portin " " as sensor_in
+    portout " " as sensor_out
+  }
+
+  component [Threshold Manager] as ThresholdMgr {
+    portin " " as threshold_in
+    portout " " as threshold_out
+  }
+
+  component [Alert Service] as AlertService {
+    portin " " as alert_in
+    portout " " as alert_out
+  }
+
+  component [Sensor Registry] as SensorRegistry {
+    portin " " as registry_in
+    portout " " as registry_out
+  }
+
+  component [MQTT Broker\n(Mosquitto)] as MQTT {
+    portin " " as mqtt_in
+    portout " " as mqtt_out
+  }
+
+  note bottom of SensorIngestion
+    **Responsibilities:**
+    - MQTT message subscription
+    - Data validation & parsing
+    - Write to InfluxDB
+    - Publish to Redis pub/sub
+    - Battery level monitoring
+  end note
+
+  note bottom of ThresholdMgr
+    **Responsibilities:**
+    - Threshold CRUD
+    - Real-time threshold checking
+    - Trigger alerts on violations
+  end note
+
+  note bottom of AlertService
+    **Responsibilities:**
+    - Alert creation
+    - Alert severity classification
+    - Alert notification (email, SMS, push)
+    - Alert acknowledgment
+    - Alert history
+  end note
+}
+
+gateway_out --> sensor_in
+gateway_out --> threshold_in
+gateway_out --> alert_in
+gateway_out --> registry_in
+
+mqtt_out --> sensor_in : Sensor Data
+sensor_out --> threshold_in : Check Thresholds
+threshold_out --> alert_in : Trigger Alert
+
+' ========== AI/ML SUBSYSTEM ==========
+package "AI/ML Subsystem" {
+
+  component [Pest Detection Engine] as PestDetection {
+    portin " " as pest_in
+    portout " " as pest_out
+  }
+
+  component [Crop Recommendation Engine] as CropRec {
+    portin " " as croprec_in
+  }
+
+  component [Yield Prediction Model] as YieldPred {
+    portin " " as yield_in
+  }
+
+  component [Irrigation Optimizer] as IrrigationOpt {
+    portin " " as irrigation_in
+    portout " " as irrigation_out
+  }
+
+  component [AI Chatbot] as Chatbot {
+    portin " " as chatbot_in
+    portout " " as chatbot_out
+  }
+
+  component [Model Registry\n(TensorFlow/PyTorch)] as MLModels {
+    portin " " as ml_in
+  }
+
+  note bottom of PestDetection
+    **Responsibilities:**
+    - Image preprocessing
+    - CNN-based pest classification
+    - Treatment recommendation
+    - Detection history
+  end note
+
+  note bottom of IrrigationOpt
+    **Responsibilities:**
+    - Soil moisture analysis
+    - Weather forecast integration
+    - Irrigation schedule optimization
+    - Water usage tracking
+  end note
+
+  note bottom of Chatbot
+    **Responsibilities:**
+    - Natural language processing
+    - Context-aware responses
+    - OpenAI GPT integration
+    - Conversation history
+  end note
+}
+
+gateway_out --> pest_in
+gateway_out --> croprec_in
+gateway_out --> yield_in
+gateway_out --> irrigation_in
+gateway_out --> chatbot_in
+
+pest_in --> ml_in : Load Model
+croprec_in --> ml_in : Load Model
+yield_in --> ml_in : Load Model
+
+irrigation_out --> sensor_in : Get Sensor Data
+
+' ========== MARKETPLACE SUBSYSTEM ==========
+package "Marketplace Subsystem" {
+
+  component [Product Catalog Service] as ProductService {
+    portin " " as product_in
+    portout " " as product_out
+  }
+
+  component [Order Management Service] as OrderService {
+    portin " " as order_in
+    portout " " as order_out
+  }
+
+  component [Payment Service] as PaymentService {
+    portin " " as payment_in
+    portout " " as payment_out
+  }
+
+  component [Search & Filter Service] as SearchService {
+    portin " " as search_in
+    portout " " as search_out
+  }
+
+  component [Review & Rating Service] as ReviewService {
+    portin " " as review_in
+  }
+
+  component [Inventory Service] as InventoryService {
+    portin " " as inventory_in
+    portout " " as inventory_out
+  }
+
+  note bottom of ProductService
+    **Responsibilities:**
+    - Product CRUD
+    - Category management
+    - Product image uploads
+    - Price management
+  end note
+
+  note bottom of OrderService
+    **Responsibilities:**
+    - Order creation
+    - Order status tracking
+    - Order history
+    - Delivery management
+  end note
+
+  note bottom of PaymentService
+    **Responsibilities:**
+    - Stripe integration
+    - Payment processing
+    - Refund handling
+    - Payment history
+    - PCI-DSS compliance
+  end note
+}
+
+gateway_out --> product_in
+gateway_out --> order_in
+gateway_out --> payment_in
+gateway_out --> search_in
+gateway_out --> review_in
+gateway_out --> inventory_in
+
+order_out --> payment_in : Process Payment
+order_out --> inventory_in : Update Stock
+search_out --> product_in : Get Products
+
+' ========== NOTIFICATION SUBSYSTEM ==========
+package "Notification Subsystem" {
+
+  component [Email Notification Service] as EmailSvc {
+    portin " " as email_in
+    portout " " as email_out
+  }
+
+  component [SMS Notification Service] as SMSSvc {
+    portin " " as sms_in
+    portout " " as sms_out
+  }
+
+  component [Push Notification Service] as PushSvc {
+    portin " " as push_in
+    portout " " as push_out
+  }
+
+  component [Notification Queue\n(Redis)] as NotifQueue {
+    portin " " as queue_in
+    portout " " as queue_out
+  }
+
+  note bottom of NotifQueue
+    **Responsibilities:**
+    - Queue management (FIFO)
+    - Dead letter queue
+    - Message retry logic
+    - Priority queuing
+  end note
+}
+
+alert_out --> queue_in : Publish
+order_out --> queue_in : Publish
+payment_out --> queue_in : Publish
+irrigation_out --> queue_in : Publish
+task_out --> queue_in : Publish
+
+queue_out --> email_in : Consume
+queue_out --> sms_in : Consume
+queue_out --> push_in : Consume
+
+' ========== ANALYTICS & REPORTING SUBSYSTEM ==========
+package "Analytics & Reporting Subsystem" {
+
+  component [Report Generator] as ReportGen {
+    portin " " as report_in
+    portout " " as report_out
+  }
+
+  component [Analytics Engine] as Analytics {
+    portin " " as analytics_in
+    portout " " as analytics_out
+  }
+
+  component [Dashboard Service] as Dashboard {
+    portin " " as dashboard_in
+    portout " " as dashboard_out
+  }
+
+  note bottom of ReportGen
+    **Responsibilities:**
+    - Generate PDF reports
+    - Export to CSV/Excel
+    - Scheduled reports
+    - Report templates
+  end note
+
+  note bottom of Analytics
+    **Responsibilities:**
+    - Data aggregation
+    - Trend analysis
+    - Revenue analytics
+    - Yield analytics
+    - Resource usage analytics
+  end note
+}
+
+gateway_out --> report_in
+gateway_out --> analytics_in
+gateway_out --> dashboard_in
+
+dashboard_out --> sensor_in : Get Sensor Stats
+dashboard_out --> farm_in : Get Farm Stats
+dashboard_out --> crop_in : Get Crop Stats
+dashboard_out --> alert_in : Get Alerts
+
+analytics_out --> sensor_in : Query Data
+analytics_out --> farm_in : Query Data
+analytics_out --> order_in : Query Data
+
+' ========== DATA ACCESS LAYER ==========
+package "Data Access Layer" {
+
+  component [PostgreSQL Repository] as PostgresRepo {
+    portin " " as pg_in
+    portout " " as pg_out
+  }
+
+  component [InfluxDB Repository] as InfluxRepo {
+    portin " " as influx_in
+    portout " " as influx_out
+  }
+
+  component [Redis Repository] as RedisRepo {
+    portin " " as redis_in
+    portout " " as redis_out
+  }
+
+  component [S3 File Manager] as S3Manager {
+    portin " " as s3_in
+    portout " " as s3_out
+  }
+
+  note bottom of PostgresRepo
+    **Responsibilities:**
+    - Database connection pooling
+    - Query execution
+    - Transaction management
+    - Migration handling
+  end note
+}
+
+auth_out --> pg_in
+user_out --> pg_in
+farm_out --> pg_in
+crop_out --> pg_in
+task_out --> pg_in
+threshold_out --> pg_in
+alert_out --> pg_in
+registry_out --> pg_in
+product_out --> pg_in
+order_out --> pg_in
+payment_out --> pg_in
+report_out --> pg_in
+analytics_out --> pg_in
+
+sensor_out --> influx_in
+analytics_out --> influx_in
+dashboard_out --> influx_in
+
+sensor_out --> redis_in : Cache
+auth_out --> redis_in : Session
+dashboard_out --> redis_in : Cache
+search_out --> redis_in : Cache
+
+pest_out --> s3_in : Store Images
+product_out --> s3_in : Store Images
+farm_out --> s3_in : Store Images
+report_out --> s3_in : Store PDFs
+
+' ========== EXTERNAL SERVICES ==========
+package "External Services Integration" {
+
+  component [Stripe Adapter] as StripeAdapter {
+    portin " " as stripe_in
+    portout " " as stripe_out
+  }
+
+  component [OpenWeatherMap Adapter] as WeatherAdapter {
+    portin " " as weather_in
+    portout " " as weather_out
+  }
+
+  component [SendGrid Adapter] as SendGridAdapter {
+    portin " " as sendgrid_in
+  }
+
+  component [Twilio Adapter] as TwilioAdapter {
+    portin " " as twilio_in
+  }
+
+  component [Firebase Cloud Messaging] as FCMAdapter {
+    portin " " as fcm_in
+  }
+
+  component [OpenAI Adapter] as OpenAIAdapter {
+    portin " " as openai_in
+  }
+}
+
+payment_out --> stripe_in
+irrigation_out --> weather_in
+email_out --> sendgrid_in
+sms_out --> twilio_in
+push_out --> fcm_in
+chatbot_out --> openai_in
+
+' ========== DATABASES ==========
+database "PostgreSQL\n(Relational Data)" as PostgresDB
+database "InfluxDB\n(Time-Series Data)" as InfluxDB
+database "Redis\n(Cache & Queue)" as RedisDB
+database "AWS S3\n(Object Storage)" as S3
+
+pg_out --> PostgresDB
+influx_out --> InfluxDB
+redis_out --> RedisDB
+s3_out --> S3
+
+' ========== IoT DEVICES ==========
+cloud "IoT Devices" {
+  component [Raspberry Pi Gateway] as RaspberryPi
+  component [Arduino Sensors] as Arduino
+}
+
+Arduino --> RaspberryPi : I2C/SPI
+RaspberryPi --> mqtt_in : Publish (MQTT)
+
+' ========== MONITORING & LOGGING ==========
+package "Observability Layer" {
+  component [Prometheus Metrics] as Prometheus
+  component [Grafana Dashboard] as Grafana
+  component [ELK Stack Logger] as ELK
+}
+
+Gateway --> Prometheus : Expose Metrics
+AuthService --> Prometheus : Expose Metrics
+FarmService --> Prometheus : Expose Metrics
+SensorIngestion --> Prometheus : Expose Metrics
+OrderService --> Prometheus : Expose Metrics
+
+Grafana --> Prometheus : Query
+
+Gateway --> ELK : Send Logs
+AuthService --> ELK : Send Logs
+FarmService --> ELK : Send Logs
+
+legend right
+  |= Color |= Meaning |
+  | <back:LightBlue>   </back> | Client Applications |
+  | <back:Orange>   </back> | API Gateway |
+  | <back:LightYellow>   </back> | Backend Services |
+  | <back:LightGreen>   </back> | External Integrations |
+  | <back:LightGray>   </back> | Data Storage |
+
+  **Component Dependencies:**
+  - Each component has clearly defined responsibilities
+  - Components communicate via well-defined interfaces
+  - Loose coupling through API Gateway and message queues
+  - Separation of concerns (BCE pattern)
+endlegend
+
+@enduml

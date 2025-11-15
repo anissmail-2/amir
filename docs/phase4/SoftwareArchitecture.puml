@@ -1,0 +1,279 @@
+@startuml SUFMS_Software_Architecture
+title Smart Urban Farming Management System - Software Architecture (3-Tier + Microservices)
+
+skinparam componentStyle rectangle
+
+' ========== PRESENTATION TIER ==========
+package "Presentation Tier" <<Cloud>> #LightBlue {
+
+  package "Web Application" {
+    component [React.js Web App] as WebApp #LightGreen
+    component [Material-UI Components] as MaterialUI
+    component [Chart.js / D3.js] as Charts
+  }
+
+  package "Mobile Application" {
+    component [React Native Mobile] as MobileApp #LightGreen
+    component [Native Modules] as NativeModules
+  }
+
+  WebApp --> MaterialUI
+  WebApp --> Charts
+  MobileApp --> NativeModules
+}
+
+' ========== API GATEWAY ==========
+component [API Gateway\n(Express.js)] as APIGateway #Orange {
+  portin " " as api_in
+  portout " " as api_out
+}
+
+WebApp -down-> api_in : HTTPS/REST
+MobileApp -down-> api_in : HTTPS/REST
+
+' ========== BUSINESS LOGIC TIER (MICROSERVICES) ==========
+package "Business Logic Tier (Microservices)" <<Cloud>> #LightYellow {
+
+  package "User Management Service" {
+    component [Authentication Service] as AuthService #Cyan
+    component [User Profile Service] as UserService #Cyan
+    database "Users DB\n(PostgreSQL)" as UsersDB
+
+    AuthService --> UsersDB
+    UserService --> UsersDB
+  }
+
+  package "Farm Management Service" {
+    component [Farm Service] as FarmService #Green
+    component [Crop Service] as CropService #Green
+    component [Task Service] as TaskService #Green
+    database "Farms DB\n(PostgreSQL)" as FarmsDB
+
+    FarmService --> FarmsDB
+    CropService --> FarmsDB
+    TaskService --> FarmsDB
+  }
+
+  package "IoT Monitoring Service" {
+    component [Sensor Data Ingestion] as SensorIngestion #Purple
+    component [Threshold Manager] as ThresholdMgr #Purple
+    component [Alert Service] as AlertService #Purple
+    database "Sensor Data\n(InfluxDB)" as SensorDB
+    database "Thresholds DB\n(PostgreSQL)" as ThresholdsDB
+    queue "MQTT Broker" as MQTT
+
+    MQTT --> SensorIngestion : Subscribe
+    SensorIngestion --> SensorDB : Write
+    SensorIngestion --> ThresholdMgr : Check
+    ThresholdMgr --> ThresholdsDB
+    ThresholdMgr --> AlertService : Trigger
+  }
+
+  package "AI/ML Service" {
+    component [Pest Detection API] as PestAPI #Pink
+    component [Crop Recommendation] as CropRec #Pink
+    component [Yield Prediction] as YieldPred #Pink
+    component [Irrigation Scheduler] as IrrigationSvc #Pink
+    component [AI Chatbot] as Chatbot #Pink
+    database "ML Models\n(TensorFlow)" as MLModels
+
+    PestAPI --> MLModels
+    CropRec --> MLModels
+    YieldPred --> MLModels
+    Chatbot --> MLModels
+  }
+
+  package "Marketplace Service" {
+    component [Product Service] as ProductService #Brown
+    component [Order Service] as OrderService #Brown
+    component [Payment Service] as PaymentService #Brown
+    component [Search Service] as SearchService #Brown
+    database "Marketplace DB\n(PostgreSQL)" as MarketDB
+
+    ProductService --> MarketDB
+    OrderService --> MarketDB
+    SearchService --> MarketDB
+    PaymentService --> MarketDB
+  }
+
+  package "Notification Service" {
+    component [Email Service] as EmailSvc #Gold
+    component [SMS Service] as SMSSvc #Gold
+    component [Push Notification] as PushSvc #Gold
+    queue "Notification Queue\n(Redis)" as NotifQueue
+
+    EmailSvc --> NotifQueue : Consume
+    SMSSvc --> NotifQueue : Consume
+    PushSvc --> NotifQueue : Consume
+  }
+
+  package "Analytics & Reporting" {
+    component [Report Generator] as ReportGen #Navy
+    component [Analytics Engine] as Analytics #Navy
+    database "Analytics DB\n(PostgreSQL)" as AnalyticsDB
+
+    ReportGen --> AnalyticsDB
+    Analytics --> AnalyticsDB
+  }
+}
+
+' API Gateway connections to services
+api_out -down-> AuthService : "/auth/*"
+api_out -down-> UserService : "/users/*"
+api_out -down-> FarmService : "/farms/*"
+api_out -down-> CropService : "/crops/*"
+api_out -down-> TaskService : "/tasks/*"
+api_out -down-> SensorIngestion : "/sensors/*"
+api_out -down-> ThresholdMgr : "/thresholds/*"
+api_out -down-> PestAPI : "/ai/pest-detection"
+api_out -down-> CropRec : "/ai/crop-recommendations"
+api_out -down-> YieldPred : "/ai/yield-prediction"
+api_out -down-> Chatbot : "/ai/chatbot"
+api_out -down-> IrrigationSvc : "/irrigation/*"
+api_out -down-> ProductService : "/marketplace/products/*"
+api_out -down-> OrderService : "/marketplace/orders/*"
+api_out -down-> SearchService : "/marketplace/search"
+api_out -down-> ReportGen : "/reports/*"
+
+' Inter-service communication
+AlertService --> NotifQueue : Publish
+OrderService --> NotifQueue : Publish
+PaymentService --> NotifQueue : Publish
+IrrigationSvc --> NotifQueue : Publish
+
+OrderService --> PaymentService : Process Payment
+SearchService --> ProductService : Get Product Data
+Analytics --> SensorDB : Read
+Analytics --> FarmsDB : Read
+Analytics --> MarketDB : Read
+
+' ========== DATA TIER ==========
+package "Data Tier" <<Database>> #LightGray {
+
+  package "Relational Databases" {
+    database "PostgreSQL\nPrimary DB" as PostgreSQL {
+      frame "users"
+      frame "farms"
+      frame "crops"
+      frame "sensors_metadata"
+      frame "products"
+      frame "orders"
+      frame "thresholds"
+    }
+  }
+
+  package "Time-Series Database" {
+    database "InfluxDB\nSensor Data" as InfluxDB {
+      frame "sensor_readings"
+      frame "aggregated_data"
+    }
+  }
+
+  package "Cache Layer" {
+    database "Redis\nCache & Queue" as Redis {
+      frame "session_cache"
+      frame "api_cache"
+      frame "notification_queue"
+      frame "rate_limiting"
+    }
+  }
+
+  package "Object Storage" {
+    database "AWS S3\nFile Storage" as S3 {
+      frame "farm_photos"
+      frame "pest_images"
+      frame "product_images"
+      frame "reports"
+    }
+  }
+}
+
+' Data tier connections (already shown above, but clarifying)
+UsersDB -up-> PostgreSQL
+FarmsDB -up-> PostgreSQL
+ThresholdsDB -up-> PostgreSQL
+MarketDB -up-> PostgreSQL
+AnalyticsDB -up-> PostgreSQL
+SensorDB -up-> InfluxDB
+NotifQueue -up-> Redis
+
+' ========== EXTERNAL SERVICES ==========
+package "External Services" <<Cloud>> #LightCoral {
+  component [Stripe Payment\nGateway] as Stripe
+  component [OpenWeatherMap\nAPI] as Weather
+  component [OpenAI GPT\nAPI] as OpenAI
+  component [SendGrid\nEmail API] as SendGrid
+  component [Twilio\nSMS API] as Twilio
+  component [Firebase Cloud\nMessaging (FCM)] as FCM
+  component [AWS IoT Core] as AWSIoT
+}
+
+PaymentService --> Stripe : Process Payments
+IrrigationSvc --> Weather : Get Forecast
+Chatbot --> OpenAI : NLP Queries
+EmailSvc --> SendGrid : Send Emails
+SMSSvc --> Twilio : Send SMS
+PushSvc --> FCM : Push Notifications
+MQTT --> AWSIoT : IoT Messages
+
+' ========== IoT DEVICES ==========
+package "IoT Devices" <<Node>> #LightSteelBlue {
+  component [Soil Moisture\nSensors] as SoilSensor
+  component [pH Sensors] as pHSensor
+  component [Temperature &\nHumidity Sensors] as TempSensor
+  component [Light Sensors] as LightSensor
+  component [Raspberry Pi\nGateway] as RaspberryPi
+
+  SoilSensor -up-> RaspberryPi : I2C/SPI
+  pHSensor -up-> RaspberryPi : I2C/SPI
+  TempSensor -up-> RaspberryPi : I2C/SPI
+  LightSensor -up-> RaspberryPi : I2C/SPI
+  RaspberryPi -up-> MQTT : Publish
+}
+
+' ========== MONITORING & LOGGING ==========
+package "DevOps & Monitoring" <<Rectangle>> #Lavender {
+  component [Grafana\nMonitoring] as Grafana
+  component [Prometheus\nMetrics] as Prometheus
+  component [ELK Stack\nLogging] as ELK
+  component [Docker\nContainers] as Docker
+  component [Kubernetes\nOrchestration] as K8s
+  component [GitHub Actions\nCI/CD] as CICD
+
+  Prometheus --> APIGateway : Scrape Metrics
+  Prometheus --> AuthService : Scrape
+  Prometheus --> FarmService : Scrape
+  Grafana --> Prometheus : Query
+  ELK --> APIGateway : Collect Logs
+  K8s --> Docker : Manage
+  CICD --> K8s : Deploy
+}
+
+note right of APIGateway
+  **API Gateway Responsibilities:**
+  - Request routing
+  - Load balancing
+  - Authentication (JWT validation)
+  - Rate limiting
+  - API versioning
+  - Request/response logging
+end note
+
+note bottom of "Business Logic Tier (Microservices)"
+  **Microservices Benefits:**
+  - Independent deployment
+  - Technology diversity
+  - Scalability per service
+  - Fault isolation
+  - Team autonomy
+end note
+
+note right of "Data Tier"
+  **Data Strategy:**
+  - PostgreSQL: Transactional data
+  - InfluxDB: Time-series sensor data
+  - Redis: Caching & queues
+  - S3: Blob storage (images, PDFs)
+end note
+
+@enduml

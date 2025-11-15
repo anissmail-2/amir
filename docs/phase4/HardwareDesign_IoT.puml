@@ -1,0 +1,305 @@
+@startuml IoT_Hardware_Architecture
+title SUFMS IoT Hardware Architecture & Integration
+
+skinparam componentStyle rectangle
+
+' ========== FARM SITE (EDGE) ==========
+package "Farm Site (Edge Layer)" <<Rectangle>> #LightGreen {
+
+  ' Sensors
+  package "Sensor Layer" {
+    component [Soil Moisture Sensor\nCapacitive / Resistive\n0-100% moisture\nAnalog output] as SoilSensor #LightBlue
+    component [pH Sensor\npH 0-14 range\nAnalog output\nBNC connector] as pHSensor #LightBlue
+    component [DHT22\nTemperature & Humidity\nDigital I2C output\n-40°C to 80°C] as TempHumidity #LightBlue
+    component [Light Sensor (LDR)\nPhotoresistor\n0-100% light\nAnalog output] as LightSensor #LightBlue
+    component [NPK Sensor (Optional)\nN-P-K levels\nRS485 Modbus] as NPKSensor #LightBlue
+  }
+
+  ' Gateway
+  component [Raspberry Pi 4 (Gateway)\n4GB RAM\nQuad-core ARM Cortex-A72\nWi-Fi, Ethernet, Bluetooth\nGPIO 40-pin header] as RaspberryPi #Orange {
+    component [Python MQTT Client] as MQTTClient
+    component [Sensor Reading Script\n(Python)] as SensorScript
+    component [Local Data Buffer\n(SQLite)] as LocalDB
+  }
+
+  ' Optional: Arduino for analog sensors
+  component [Arduino Uno (Optional)\nATmega328P\n6 Analog inputs\n14 Digital I/O\nI2C, SPI support] as Arduino #LightYellow {
+    component [Arduino Sketch\n(Sensor Reading)] as ArduinoCode
+  }
+
+  ' Power Supply
+  component [Power Supply\n12V DC Adapter\nOR\nSolar Panel + Battery] as PowerSupply #Pink
+}
+
+' Connections within farm site
+SoilSensor -down-> Arduino : "Analog A0"
+pHSensor -down-> Arduino : "Analog A1"
+LightSensor -down-> Arduino : "Analog A2"
+TempHumidity -down-> RaspberryPi : "GPIO (Digital)"
+NPKSensor -down-> RaspberryPi : "RS485 → USB"
+
+Arduino -down-> RaspberryPi : "USB Serial\n(9600 baud)"
+ArduinoCode -up-> Arduino
+SensorScript -up-> RaspberryPi
+MQTTClient -up-> RaspberryPi
+LocalDB -up-> RaspberryPi
+
+PowerSupply -down-> RaspberryPi : "5V DC"
+PowerSupply -down-> Arduino : "12V → 5V Regulator"
+
+' ========== CLOUD / BACKEND ==========
+package "Cloud Infrastructure (AWS)" <<Cloud>> #LightSkyBlue {
+
+  component [AWS IoT Core\nMQTT Broker\nDevice Registry\nMessage Routing] as AWSIoT #Cyan
+
+  component [SUFMS Backend\nNode.js API Server\nSensor Data Ingestion\nPostgreSQL + InfluxDB] as Backend #Green
+
+  database "InfluxDB\nTime-Series Database\nSensor Readings" as InfluxDB #Purple
+
+  database "PostgreSQL\nMetadata Database\nSensors, Thresholds\nAlerts" as PostgreSQL #Navy
+}
+
+' Farm to Cloud
+RaspberryPi -up-> AWSIoT : "MQTT over TLS\nTopic: sufms/farm/{farm_id}/sensor/{sensor_id}\nPublish every 15 min"
+AWSIoT -down-> Backend : "Message Forwarding\nHTTP Webhook"
+Backend -down-> InfluxDB : "Write Sensor Data"
+Backend -down-> PostgreSQL : "Write Alerts,\nUpdate Sensor Metadata"
+
+' ========== DATA FLOW ==========
+note right of RaspberryPi
+  **Data Flow:**
+  1. Sensors → Arduino (analog reading)
+  2. Arduino → Raspberry Pi (serial)
+  3. Pi reads DHT22, NPK directly
+  4. Pi aggregates all readings
+  5. Pi publishes to MQTT (AWS IoT)
+  6. Backend receives & processes
+  7. Data stored in InfluxDB
+  8. Alerts generated if threshold violated
+end note
+
+' ========== SENSOR SPECIFICATIONS ==========
+note left of SoilSensor
+  **Soil Moisture Sensor:**
+  - Type: Capacitive (corrosion-resistant)
+  - Voltage: 3.3V - 5V
+  - Output: 0-3V analog
+  - Accuracy: ±3%
+  - Cost: ~$10
+
+  **Reading Interpretation:**
+  - 0-30%: Dry soil
+  - 30-60%: Moist soil
+  - 60-100%: Wet soil
+end note
+
+note left of pHSensor
+  **pH Sensor:**
+  - Type: Electrode probe
+  - Range: pH 0-14
+  - Voltage: 5V
+  - Output: 0-5V analog
+  - Accuracy: ±0.1 pH
+  - Cost: ~$25
+  - Calibration: Required (buffer solutions)
+end note
+
+note left of TempHumidity
+  **DHT22 (Temp & Humidity):**
+  - Temperature: -40°C to 80°C (±0.5°C)
+  - Humidity: 0-100% RH (±2%)
+  - Interface: Digital (single-wire)
+  - Voltage: 3.3V - 5V
+  - Sampling: Max 0.5 Hz (2 sec interval)
+  - Cost: ~$10
+end note
+
+note left of LightSensor
+  **Light Sensor (LDR):**
+  - Type: Photoresistor (CdS)
+  - Resistance: 1kΩ (light) to 1MΩ (dark)
+  - Circuit: Voltage divider with 10kΩ
+  - Output: 0-3.3V analog
+  - Cost: ~$2
+end note
+
+' ========== RASPBERRY PI SETUP ==========
+note right of RaspberryPi
+  **Raspberry Pi 4 Configuration:**
+
+  **OS:** Raspberry Pi OS Lite (64-bit)
+
+  **Software Stack:**
+  - Python 3.9+
+  - MQTT Client (paho-mqtt)
+  - GPIO Library (RPi.GPIO)
+  - Serial Communication (pyserial)
+  - SQLite (local buffering)
+
+  **Startup Services:**
+  - sensor_reader.service (systemd)
+  - mqtt_publisher.service (systemd)
+
+  **Power Consumption:**
+  - Idle: 2.7W
+  - Active: 6.4W
+  - With sensors: ~8W total
+
+  **Network:**
+  - Wi-Fi (2.4GHz/5GHz)
+  - Ethernet backup
+  - Cellular (USB dongle optional)
+end note
+
+' ========== ARDUINO SETUP ==========
+note left of Arduino
+  **Arduino Uno Configuration:**
+
+  **Purpose:** Analog sensor reading
+  (Pi has limited analog inputs)
+
+  **Connected Sensors:**
+  - A0: Soil Moisture
+  - A1: pH Sensor
+  - A2: Light Sensor
+  - A3-A5: Reserved
+
+  **Code Logic:**
+  1. Read analog sensors every 15 min
+  2. Average 10 samples per reading
+  3. Send via Serial to Pi
+
+  **Serial Format:**
+  SOIL:42.5,PH:6.8,LIGHT:75.2\n
+
+  **Power:** 5V from Pi USB
+end note
+
+' ========== MQTT MESSAGE FORMAT ==========
+note bottom of AWSIoT
+  **MQTT Topic Structure:**
+  sufms/farm/{farm_id}/sensor/{sensor_id}
+
+  **Example Topic:**
+  sufms/farm/123e4567-e89b-12d3/sensor/550e8400-e29b
+
+  **Message Payload (JSON):**
+  {
+    "sensor_id": "550e8400-e29b-41d4-a716-446655440000",
+    "farm_id": "123e4567-e89b-12d3-a456-426614174000",
+    "sensor_type": "SoilMoisture",
+    "value": 42.5,
+    "unit": "%",
+    "battery_level": 87,
+    "signal_strength": -45,
+    "timestamp": "2025-11-15T10:30:00Z"
+  }
+
+  **QoS:** 1 (at least once delivery)
+  **Retained:** No
+  **Frequency:** Every 15 minutes
+end note
+
+' ========== SECURITY ==========
+note top of AWSIoT
+  **IoT Security:**
+
+  1. **TLS Encryption:** All MQTT over TLS 1.2+
+  2. **Device Certificates:** X.509 certs per gateway
+  3. **IAM Policies:** Least-privilege access
+  4. **Device Shadow:** Sync device state
+  5. **Over-The-Air (OTA) Updates:** Secure firmware updates
+end note
+
+' ========== ALTERNATIVE: SOLAR POWER ==========
+package "Solar Power System (Optional)" <<Rectangle>> #Yellow {
+  component [Solar Panel\n50W, 12V\nPolycrystalline] as SolarPanel
+  component [Charge Controller\nPWM/MPPT\n12V 10A] as ChargeController
+  component [12V Battery\nLead-acid / LiFePO4\n20Ah capacity] as Battery
+  component [DC-DC Converter\n12V → 5V, 3A\nBuck converter] as DCConverter
+
+  SolarPanel --> ChargeController : "12V DC"
+  ChargeController --> Battery : "Regulated charging"
+  Battery --> DCConverter : "12V DC"
+  DCConverter --> RaspberryPi : "5V, 3A"
+}
+
+note right of SolarPanel
+  **Solar Power Calculation:**
+
+  **Total Power Draw:**
+  - Raspberry Pi: 8W (with sensors)
+  - Arduino: 2W
+  - Total: 10W continuous
+
+  **Daily Energy:**
+  - 10W × 24h = 240 Wh/day
+
+  **Battery Capacity:**
+  - 12V × 20Ah = 240 Wh
+  - Provides 1 day backup
+
+  **Solar Panel:**
+  - 50W panel
+  - 5 hours sun = 250 Wh/day
+  - Sufficient for continuous operation
+end note
+
+' ========== DEPLOYMENT CONSIDERATIONS ==========
+note bottom of "Farm Site (Edge Layer)"
+  **Deployment Best Practices:**
+
+  1. **Weatherproofing:**
+     - IP65 enclosure for Raspberry Pi
+     - Waterproof sensor casings
+     - Cable glands for wire entry
+
+  2. **Sensor Placement:**
+     - Soil sensors: 6" deep, avoid edge of plot
+     - Temperature: Shaded area (avoid direct sun)
+     - pH: Calibrate weekly with buffer solutions
+
+  3. **Network Reliability:**
+     - Wi-Fi signal strength >-70 dBm
+     - Ethernet preferred for reliability
+     - Local buffering (SQLite) if offline
+
+  4. **Maintenance:**
+     - Clean sensors monthly
+     - Calibrate pH sensor bi-weekly
+     - Replace soil moisture sensor yearly
+     - Check power supply connections
+
+  5. **Scalability:**
+     - One gateway supports up to 10 sensors
+     - Multiple gateways per large farm
+     - I2C bus for additional digital sensors
+end note
+
+' ========== COST BREAKDOWN ==========
+note top of "Farm Site (Edge Layer)"
+  **Hardware Cost Estimate (Per Gateway):**
+
+  | Component | Quantity | Unit Price | Total |
+  |-----------|----------|------------|-------|
+  | Raspberry Pi 4 (4GB) | 1 | $55 | $55 |
+  | Arduino Uno | 1 | $25 | $25 |
+  | Soil Moisture Sensor | 2 | $10 | $20 |
+  | pH Sensor | 1 | $25 | $25 |
+  | DHT22 Sensor | 1 | $10 | $10 |
+  | Light Sensor (LDR) | 1 | $2 | $2 |
+  | Enclosure (IP65) | 1 | $20 | $20 |
+  | Power Supply (12V 3A) | 1 | $15 | $15 |
+  | Cables & Connectors | - | - | $10 |
+  | SD Card (32GB) | 1 | $10 | $10 |
+  | **TOTAL** | | | **$192** |
+
+  **Optional Solar Kit:** +$150
+  **NPK Sensor:** +$80
+
+  **Monthly Cloud Costs:**
+  - AWS IoT Core: ~$5/month (per gateway)
+  - Data transfer: ~$2/month
+end note
+
+@enduml

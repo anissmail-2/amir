@@ -1,0 +1,418 @@
+@startuml SUFMS_Deployment_Diagram
+title Smart Urban Farming Management System - Deployment Diagram
+
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+' ========== USER DEVICES ==========
+node "User Desktop/Laptop" as Desktop {
+  artifact "Web Browser\n(Chrome/Firefox/Safari)" as Browser
+  component "React.js App\n(Static Files)" as WebApp
+
+  Browser --> WebApp : Runs
+}
+
+node "User Mobile Device\n(iOS/Android)" as Mobile {
+  component "React Native App\n(APK/IPA)" as MobileApp
+}
+
+' ========== CLOUD INFRASTRUCTURE (AWS) ==========
+cloud "AWS Cloud" {
+
+  ' ========== LOAD BALANCER ==========
+  node "Application Load Balancer\n(AWS ALB)" as ALB {
+    component "ALB" as LoadBalancer
+  }
+
+  ' ========== API GATEWAY CLUSTER ==========
+  package "API Gateway Tier" {
+    node "EC2 Instance (t3.medium)\n10.0.1.10" as Gateway1 {
+      artifact "Docker Container" as GatewayDocker1
+      component "API Gateway\n(Express.js:4000)" as GatewayApp1
+      component "Node.js Runtime\nv18 LTS" as Node1
+
+      GatewayDocker1 --> GatewayApp1 : Runs
+      GatewayApp1 --> Node1
+    }
+
+    node "EC2 Instance (t3.medium)\n10.0.1.11" as Gateway2 {
+      artifact "Docker Container" as GatewayDocker2
+      component "API Gateway\n(Express.js:4000)" as GatewayApp2
+      component "Node.js Runtime\nv18 LTS" as Node2
+
+      GatewayDocker2 --> GatewayApp2 : Runs
+      GatewayApp2 --> Node2
+    }
+  }
+
+  ' ========== MICROSERVICES CLUSTER (KUBERNETES) ==========
+  package "Kubernetes Cluster (EKS)" {
+
+    node "Worker Node 1\n(t3.large)\n10.0.2.10" as K8sNode1 {
+
+      package "Pods" {
+        artifact "Docker Container" as AuthDocker
+        component "Auth Service:3001" as AuthPod
+
+        artifact "Docker Container" as UserDocker
+        component "User Service:3002" as UserPod
+
+        artifact "Docker Container" as FarmDocker
+        component "Farm Service:3003" as FarmPod
+
+        AuthDocker --> AuthPod : Runs
+        UserDocker --> UserPod : Runs
+        FarmDocker --> FarmPod : Runs
+      }
+    }
+
+    node "Worker Node 2\n(t3.large)\n10.0.2.11" as K8sNode2 {
+
+      package "Pods" {
+        artifact "Docker Container" as SensorDocker
+        component "Sensor Service:3004" as SensorPod
+
+        artifact "Docker Container" as AlertDocker
+        component "Alert Service:3005" as AlertPod
+
+        artifact "Docker Container" as ThresholdDocker
+        component "Threshold Service:3006" as ThresholdPod
+
+        SensorDocker --> SensorPod : Runs
+        AlertDocker --> AlertPod : Runs
+        ThresholdDocker --> ThresholdPod : Runs
+      }
+    }
+
+    node "Worker Node 3\n(t3.large)\n10.0.2.12" as K8sNode3 {
+
+      package "Pods" {
+        artifact "Docker Container" as MarketDocker
+        component "Marketplace Service:3007" as MarketPod
+
+        artifact "Docker Container" as OrderDocker
+        component "Order Service:3008" as OrderPod
+
+        artifact "Docker Container" as PaymentDocker
+        component "Payment Service:3009" as PaymentPod
+
+        MarketDocker --> MarketPod : Runs
+        OrderDocker --> OrderPod : Runs
+        PaymentDocker --> PaymentPod : Runs
+      }
+    }
+
+    node "Worker Node 4\n(t3.xlarge)\n10.0.2.13" as K8sNode4 {
+
+      package "AI/ML Pods" {
+        artifact "Docker Container\n(TensorFlow)" as PestDocker
+        component "Pest Detection:3010" as PestPod
+
+        artifact "Docker Container\n(TensorFlow)" as CropRecDocker
+        component "Crop Recommendation:3011" as CropRecPod
+
+        artifact "Docker Container" as ChatbotDocker
+        component "AI Chatbot:3012" as ChatbotPod
+
+        PestDocker --> PestPod : Runs
+        CropRecDocker --> CropRecPod : Runs
+        ChatbotDocker --> ChatbotPod : Runs
+      }
+    }
+
+    node "Worker Node 5\n(t3.medium)\n10.0.2.14" as K8sNode5 {
+
+      package "Notification Pods" {
+        artifact "Docker Container" as EmailDocker
+        component "Email Worker:3013" as EmailPod
+
+        artifact "Docker Container" as SMSDocker
+        component "SMS Worker:3014" as SMSPod
+
+        artifact "Docker Container" as PushDocker
+        component "Push Worker:3015" as PushPod
+
+        EmailDocker --> EmailPod : Runs
+        SMSDocker --> SMSPod : Runs
+        PushDocker --> PushPod : Runs
+      }
+    }
+  }
+
+  ' ========== DATABASE SERVERS ==========
+  package "Database Tier" {
+
+    node "RDS PostgreSQL\n(db.t3.large)\n10.0.3.10" as PostgresServer {
+      database "PostgreSQL 15\nPrimary Instance" as PostgresDB
+      artifact "Automated Backup" as PGBackup
+
+      PostgresDB --> PGBackup : Daily
+    }
+
+    node "RDS PostgreSQL Read Replica\n(db.t3.medium)\n10.0.3.11" as PostgresReplica {
+      database "PostgreSQL 15\nRead Replica" as PostgresReadDB
+    }
+
+    node "EC2 Instance (t3.large)\n10.0.3.20" as InfluxServer {
+      artifact "Docker Container" as InfluxDocker
+      database "InfluxDB 2.x" as InfluxDB
+      artifact "Backup Script" as InfluxBackup
+
+      InfluxDocker --> InfluxDB : Runs
+      InfluxDB --> InfluxBackup : Daily
+    }
+
+    node "ElastiCache Redis Cluster\n10.0.3.30" as RedisCluster {
+      database "Redis 7.x\nNode 1 (Primary)" as Redis1
+      database "Redis 7.x\nNode 2 (Replica)" as Redis2
+      database "Redis 7.x\nNode 3 (Replica)" as Redis3
+
+      Redis1 --> Redis2 : Replication
+      Redis1 --> Redis3 : Replication
+    }
+  }
+
+  ' ========== OBJECT STORAGE ==========
+  node "AWS S3\nus-east-1" as S3Bucket {
+    database "S3 Bucket:\nsufms-storage" as S3
+    folder "farm-images/" as FarmImages
+    folder "product-images/" as ProductImages
+    folder "pest-detection/" as PestImages
+    folder "reports/" as Reports
+
+    S3 --> FarmImages
+    S3 --> ProductImages
+    S3 --> PestImages
+    S3 --> Reports
+  }
+
+  ' ========== IoT INFRASTRUCTURE ==========
+  node "AWS IoT Core" as IoTCore {
+    component "MQTT Broker\n(Managed)" as MQTTBroker
+    component "IoT Rules Engine" as IoTRules
+
+    IoTRules --> MQTTBroker
+  }
+}
+
+' ========== ON-PREMISE IoT DEVICES ==========
+package "Farm Site (On-Premise)" {
+
+  node "Farm Gateway 1\nFarm A" as Gateway_FarmA {
+    artifact "Raspberry Pi 4\n(4GB RAM)" as RaspberryPi1
+    component "Python MQTT Client\n(Paho)" as MQTTClient1
+    component "Sensor Reading Script" as SensorScript1
+
+    node "Arduino Uno\nSPI Connection" as Arduino1 {
+      artifact "Soil Moisture Sensor" as Soil1
+      artifact "pH Sensor" as pH1
+      artifact "DHT22 (Temp/Humidity)" as DHT1
+      artifact "Light Sensor (LDR)" as Light1
+    }
+
+    RaspberryPi1 --> MQTTClient1 : Runs
+    RaspberryPi1 --> SensorScript1 : Runs
+    SensorScript1 --> Arduino1 : Read via SPI
+  }
+
+  node "Farm Gateway 2\nFarm B" as Gateway_FarmB {
+    artifact "Raspberry Pi 4\n(4GB RAM)" as RaspberryPi2
+    component "Python MQTT Client\n(Paho)" as MQTTClient2
+    component "Sensor Reading Script" as SensorScript2
+
+    node "Arduino Uno\nSPI Connection" as Arduino2 {
+      artifact "Soil Moisture Sensor" as Soil2
+      artifact "pH Sensor" as pH2
+      artifact "DHT22 (Temp/Humidity)" as DHT2
+      artifact "Light Sensor (LDR)" as Light2
+    }
+
+    RaspberryPi2 --> MQTTClient2 : Runs
+    RaspberryPi2 --> SensorScript2 : Runs
+    SensorScript2 --> Arduino2 : Read via SPI
+  }
+}
+
+' ========== MONITORING & LOGGING INFRASTRUCTURE ==========
+package "Observability Infrastructure" {
+
+  node "EC2 Instance (t3.medium)\n10.0.4.10" as MonitoringServer {
+    artifact "Docker Compose" as MonitoringDocker
+    component "Prometheus:9090" as Prometheus
+    component "Grafana:3000" as Grafana
+    database "Prometheus TSDB" as PrometheusDB
+
+    MonitoringDocker --> Prometheus : Runs
+    MonitoringDocker --> Grafana : Runs
+    Prometheus --> PrometheusDB : Stores
+    Grafana --> Prometheus : Queries
+  }
+
+  node "EC2 Instance (t3.large)\n10.0.4.20" as LoggingServer {
+    artifact "Docker Compose" as ELKDocker
+    component "Elasticsearch:9200" as Elasticsearch
+    component "Logstash:5044" as Logstash
+    component "Kibana:5601" as Kibana
+    database "ES Index" as ESIndex
+
+    ELKDocker --> Elasticsearch : Runs
+    ELKDocker --> Logstash : Runs
+    ELKDocker --> Kibana : Runs
+    Logstash --> Elasticsearch : Index
+    Elasticsearch --> ESIndex : Stores
+    Kibana --> Elasticsearch : Queries
+  }
+}
+
+' ========== EXTERNAL SERVICES ==========
+cloud "External Services" {
+  node "Stripe API\napi.stripe.com" as StripeAPI
+  node "OpenWeatherMap API\napi.openweathermap.org" as WeatherAPI
+  node "SendGrid API\napi.sendgrid.com" as SendGridAPI
+  node "Twilio API\napi.twilio.com" as TwilioAPI
+  node "Firebase Cloud Messaging\nfcm.googleapis.com" as FCMAPI
+  node "OpenAI API\napi.openai.com" as OpenAIAPI
+}
+
+' ========== CONNECTIONS ==========
+
+' User to Cloud
+Browser --> LoadBalancer : HTTPS (443)
+MobileApp --> LoadBalancer : HTTPS (443)
+
+' Load Balancer to API Gateway
+LoadBalancer --> GatewayApp1 : HTTP (4000)
+LoadBalancer --> GatewayApp2 : HTTP (4000)
+
+' API Gateway to Microservices
+GatewayApp1 --> AuthPod : HTTP
+GatewayApp1 --> UserPod : HTTP
+GatewayApp1 --> FarmPod : HTTP
+GatewayApp1 --> SensorPod : HTTP
+GatewayApp1 --> MarketPod : HTTP
+GatewayApp1 --> PestPod : HTTP
+
+' Microservices to Databases
+AuthPod --> PostgresDB : TCP (5432)
+UserPod --> PostgresDB : TCP (5432)
+FarmPod --> PostgresDB : TCP (5432)
+MarketPod --> PostgresDB : TCP (5432)
+OrderPod --> PostgresDB : TCP (5432)
+PaymentPod --> PostgresDB : TCP (5432)
+
+SensorPod --> InfluxDB : HTTP (8086)
+AlertPod --> InfluxDB : HTTP (8086)
+
+AuthPod --> Redis1 : TCP (6379)
+SensorPod --> Redis1 : TCP (6379)
+MarketPod --> Redis1 : TCP (6379)
+EmailPod --> Redis1 : TCP (6379)
+
+' Read Replica
+FarmPod --> PostgresReadDB : TCP (5432)\n(Read-only queries)
+MarketPod --> PostgresReadDB : TCP (5432)\n(Search queries)
+
+' Database Replication
+PostgresDB --> PostgresReadDB : Async Replication
+
+' S3 Connections
+FarmPod --> S3 : HTTPS (443)
+MarketPod --> S3 : HTTPS (443)
+PestPod --> S3 : HTTPS (443)
+
+' IoT Devices to Cloud
+MQTTClient1 --> MQTTBroker : MQTT over TLS (8883)
+MQTTClient2 --> MQTTBroker : MQTT over TLS (8883)
+IoTRules --> SensorPod : Forward to Sensor Service
+
+' External Services
+PaymentPod --> StripeAPI : HTTPS (443)
+ChatbotPod --> WeatherAPI : HTTPS (443)
+EmailPod --> SendGridAPI : HTTPS (443)
+SMSPod --> TwilioAPI : HTTPS (443)
+PushPod --> FCMAPI : HTTPS (443)
+ChatbotPod --> OpenAIAPI : HTTPS (443)
+
+' Monitoring
+GatewayApp1 --> Prometheus : HTTP (9090)\nMetrics
+AuthPod --> Prometheus : HTTP (9090)\nMetrics
+SensorPod --> Prometheus : HTTP (9090)\nMetrics
+MarketPod --> Prometheus : HTTP (9090)\nMetrics
+
+GatewayApp1 --> Logstash : TCP (5044)\nLogs
+AuthPod --> Logstash : TCP (5044)\nLogs
+FarmPod --> Logstash : TCP (5044)\nLogs
+
+note top of ALB
+  **Load Balancer Configuration:**
+  - SSL/TLS termination (ACM certificate)
+  - HTTP to HTTPS redirect
+  - Health checks every 30s
+  - Sticky sessions enabled
+  - Cross-zone load balancing
+end note
+
+note right of "Kubernetes Cluster (EKS)"
+  **Kubernetes Configuration:**
+  - Auto-scaling (HPA): 2-10 pods per service
+  - Resource limits: CPU (500m-2000m), Memory (512Mi-4Gi)
+  - Rolling updates with zero downtime
+  - ConfigMaps for environment variables
+  - Secrets for sensitive data
+  - Ingress controller (NGINX)
+end note
+
+note bottom of PostgresServer
+  **Database Configuration:**
+  - Multi-AZ deployment
+  - Automated backups (7-day retention)
+  - Encryption at rest (AES-256)
+  - Encryption in transit (TLS 1.3)
+  - Performance Insights enabled
+end note
+
+note left of Gateway_FarmA
+  **IoT Gateway Specs:**
+  - Raspberry Pi 4 (4GB RAM)
+  - Raspbian OS Lite
+  - Python 3.9+
+  - MQTT client (Paho)
+  - 12V power supply or solar
+  - 4G LTE dongle (backup connectivity)
+end note
+
+note bottom of MonitoringServer
+  **Monitoring Stack:**
+  - Prometheus scrapes metrics every 15s
+  - Grafana dashboards for visualization
+  - Alertmanager for alerts
+  - Retention: 15 days
+end note
+
+note bottom of LoggingServer
+  **Logging Stack:**
+  - Logstash parses JSON logs
+  - Elasticsearch indexes logs
+  - Kibana for log search/analysis
+  - Retention: 30 days
+end note
+
+legend bottom right
+  |= Protocol |= Port |= Purpose |
+  | HTTPS | 443 | Secure web traffic |
+  | HTTP | 4000-4015 | Internal API calls |
+  | TCP | 5432 | PostgreSQL |
+  | HTTP | 8086 | InfluxDB |
+  | TCP | 6379 | Redis |
+  | MQTT/TLS | 8883 | IoT communication |
+  | HTTP | 9090 | Prometheus metrics |
+  | TCP | 5044 | Logstash logs |
+
+  **Deployment Strategy:**
+  - Blue-Green deployments for zero downtime
+  - CI/CD via GitHub Actions
+  - Infrastructure as Code (Terraform)
+  - Secrets managed via AWS Secrets Manager
+endlegend
+
+@enduml
