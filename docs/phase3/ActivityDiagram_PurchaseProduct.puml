@@ -1,0 +1,232 @@
+@startuml Activity_Purchase_Product_Marketplace
+title Activity Diagram: Purchase Product from Marketplace (UC-025)
+
+|Consumer|
+start
+:Want to purchase fresh\nlocal produce;
+:Navigate to "Marketplace" section;
+
+|System|
+:Display available products\nwith photos, prices, farm names, ratings;
+
+|Consumer|
+:Enter search criteria\n(e.g., "tomatoes");
+:Apply location filter\n(e.g., "within 5 miles");
+
+|System|
+:Query database with filters;
+
+if (Products found matching criteria?) then (yes)
+  :Return filtered results;
+  :Display product listings;
+
+  |Consumer|
+  :Sort results by\n"Highest Rated";
+
+  |System|
+  :Reorder results by rating;
+
+  |Consumer|
+  :Browse products;
+  :Click on product\n(e.g., "Organic Cherry Tomatoes");
+
+  |System|
+  :Display product details;
+
+  fork
+    :Show product photos;
+  fork again
+    :Show description, price ($6/lb);
+  fork again
+    :Show farm profile,\nsustainability badges;
+  fork again
+    :Show available quantity (10 lbs);
+  fork again
+    :Show availability date;
+  fork again
+    :Show pickup/delivery options;
+  fork again
+    :Show ratings (4.8★, 23 reviews);
+  end fork
+
+  |Consumer|
+  :Select quantity (2 lbs);
+  :Select delivery method\n("Farm pickup");
+
+  if (Requested quantity available?) then (yes)
+    :Click "Add to Cart";
+
+    |System|
+    :Add item to shopping cart;
+    :Update cart icon badge;
+
+    |Consumer|
+    if (Continue shopping?) then (yes)
+      :Browse more products;
+      :Add more items\n(e.g., "Lettuce Mix - 1 lb");
+      -[#blue]-> Add item to shopping cart;
+    else (no)
+    endif
+
+    :Click cart icon to review;
+
+    |System|
+    :Display cart contents;
+    :Show items, quantities, prices;
+    :Calculate subtotal ($14);
+
+    |Consumer|
+    :Review cart items;
+    :Click "Proceed to Checkout";
+
+    |System|
+    :Display checkout page;
+    :Show order summary;
+    :Display delivery details form;
+
+    |Consumer|
+    :Enter pickup date preference;
+    :Enter phone number;
+
+    |System|
+    :Validate form inputs;
+
+    if (All required fields valid?) then (yes)
+      :Calculate tax (if applicable): $1.12;
+      :Calculate total: $15.12;
+      :Display payment method options;
+
+      |Consumer|
+      :Select payment method\n("Credit Card");
+
+      |System|
+      :Display Stripe payment form;
+
+      |Consumer|
+      :Enter card details\n(number, expiry, CVV);
+      :Click "Place Order";
+
+      |System|
+      :Validate payment inputs;
+
+      if (Payment details valid?) then (yes)
+        :Check inventory availability\n(atomic transaction);
+
+        if (All items still in stock?) then (yes)
+          |Payment Gateway (Stripe)|
+          :Process payment request;
+
+          if (Payment successful?) then (yes)
+            :Return success token;
+
+            |System|
+            :Create order record\n(Order #12345);
+            :Update inventory\n(decrement quantities);
+
+            fork
+              :Send confirmation email to buyer\n(order details, farmer contact);
+            fork again
+              :Send notification to farmers\n(new order alert);
+            fork again
+              :Update order status\n("Pending farmer confirmation");
+            end fork
+
+            :Display order confirmation page\n"Order placed successfully!";
+            :Show Order #12345;
+
+            |Consumer|
+            if (View order status?) then (yes)
+              |System|
+              :Navigate to "My Orders";
+              :Display order tracking;
+            else (no)
+              :Continue browsing marketplace;
+            endif
+
+            stop
+
+          else (payment declined)
+            :Return error\n"Payment declined";
+
+            |System|
+            :Display error to user;
+            :Do NOT create order;
+            :Log failed transaction;
+
+            |Consumer|
+            if (Try again?) then (yes)
+              :Try different payment method;
+              -[#red]-> Select payment method;
+            else (no)
+              :Save cart for later;
+              stop
+            endif
+          endif
+
+        else (product out of stock)
+          :Detect inventory change;
+          :Display "Sorry, item now sold out";
+          :Remove unavailable items from cart;
+
+          |Consumer|
+          if (Cart empty after removal?) then (yes)
+            :Exit checkout;
+            stop
+          else (no)
+            :Review updated cart;
+            -[#blue]-> Display cart contents;
+          endif
+        endif
+
+      else (payment details invalid)
+        :Display validation errors\n(highlight error fields in red);
+
+        |Consumer|
+        :Correct payment information;
+        -[#blue]-> Enter card details;
+      endif
+
+    else (form validation fails)
+      :Display validation errors\n(e.g., "Please enter valid phone");
+
+      |Consumer|
+      :Correct form information;
+      -[#blue]-> Validate form inputs;
+    endif
+
+  else (quantity exceeds stock)
+    :Show error\n"Only X lbs available";
+
+    |Consumer|
+    :Adjust quantity to available amount;
+    -[#blue]-> Add item to shopping cart;
+  endif
+
+else (no products found)
+  :Display "No products found.\nTry adjusting filters.";
+
+  |Consumer|
+  if (Modify search?) then (yes)
+    :Change search criteria;
+    -[#blue]-> Query database with filters;
+  else (no)
+    :Browse all products;
+    -[#blue]-> Display product listings;
+  endif
+endif
+
+note right of System
+  **Business Rules:**
+  - Platform charges 10% commission
+  - Minimum order: $5
+  - Farmers must confirm within 24h
+  - Buyers can cancel before confirmation
+
+  **Security:**
+  - PCI-DSS compliant
+  - No card storage (tokenization)
+  - TLS 1.3 encryption
+  - Inventory atomic transactions
+end note
+
+@enduml

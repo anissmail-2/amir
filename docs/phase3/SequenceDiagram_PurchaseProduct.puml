@@ -1,0 +1,328 @@
+@startuml Sequence_Purchase_Product_Marketplace
+title Sequence Diagram: Purchase Product from Marketplace (UC-025)
+
+actor "Consumer" as User
+boundary "MarketplaceUI" as UI
+control "SearchEngine" as Search
+control "OrderManager" as OrderMgr
+control "InventoryManager" as InvMgr
+control "PaymentProcessor" as PaymentProc
+control "NotificationService" as Notifier
+entity "Product" as Product
+entity "Order" as Order
+entity "OrderItem" as OrderItem
+entity "Payment" as Payment
+entity "User" as Farmer
+database "PostgreSQL" as DB
+participant "Payment Gateway\n(Stripe)" as Stripe
+
+User -> UI: Navigate to Marketplace
+activate UI
+
+UI -> DB: getAllProducts()
+activate DB
+DB --> UI: List<Product>
+deactivate DB
+
+UI --> User: Display product listings
+
+User -> UI: Enter search "tomatoes"\nand filter "within 5 miles"
+
+UI -> Search: searchProducts(query="tomatoes",\nlocation, radius=5miles)
+activate Search
+
+Search -> DB: queryProducts(criteria)
+activate DB
+DB --> Search: filteredProducts
+deactivate DB
+
+Search -> Search: applyLocationFilter(products, location, radius)
+Search -> Search: calculateDistances()
+Search --> UI: SearchResults(products)
+deactivate Search
+
+UI -> UI: displayResults(products)
+
+User -> UI: Sort by "Highest Rated"
+
+UI -> UI: sortProducts(criteria=rating)
+UI --> User: Display sorted products
+
+User -> UI: Click on product\n"Organic Cherry Tomatoes"
+
+UI -> DB: getProductDetails(productId)
+activate DB
+DB --> UI: ProductDetails
+deactivate DB
+
+UI -> DB: getFarmDetails(farmId)
+activate DB
+DB --> UI: FarmProfile
+deactivate DB
+
+UI -> DB: getProductReviews(productId)
+activate DB
+DB --> UI: List<Review>
+deactivate DB
+
+UI -> UI: displayProductDetails(product, farm, reviews)
+UI --> User: Show detailed product page
+
+User -> UI: Select quantity (2 lbs)\nand delivery method (pickup)
+
+UI -> InvMgr: checkAvailability(productId, quantity=2)
+activate InvMgr
+
+InvMgr -> DB: getProductStock(productId)
+activate DB
+DB --> InvMgr: availableQuantity=10
+deactivate DB
+
+alt Quantity available
+  InvMgr --> UI: available=true
+  deactivate InvMgr
+
+  User -> UI: Click "Add to Cart"
+
+  UI -> UI: addToCart(productId, quantity, deliveryMethod)
+  UI -> UI: updateCartBadge()
+  UI --> User: Item added to cart
+
+  User -> UI: Add another item\n"Lettuce Mix - 1 lb"
+  note right: Repeat add to cart
+
+  User -> UI: Click cart icon
+
+  UI -> UI: getCartItems()
+  UI -> UI: calculateSubtotal()
+  UI --> User: Display cart\n(2 items, $14 subtotal)
+
+  User -> UI: Click "Proceed to Checkout"
+
+  UI -> UI: displayCheckoutForm()
+  UI --> User: Show checkout page
+
+  User -> UI: Enter delivery details\n(pickup date, phone)
+
+  UI -> UI: validateForm(formData)
+
+  alt Form validation passes
+    UI -> UI: calculateTax(location)
+    UI -> UI: calculateTotal()
+    note right: Subtotal: $14\nTax: $1.12\nTotal: $15.12
+
+    UI --> User: Show payment form\n(Total: $15.12)
+
+    User -> UI: Select "Credit Card"
+
+    UI -> UI: displayStripePaymentForm()
+    UI --> User: Payment form
+
+    User -> UI: Enter card details and\nclick "Place Order"
+
+    UI -> UI: validatePaymentInputs()
+
+    alt Payment inputs valid
+      UI -> OrderMgr: createOrder(buyerId, cartItems, deliveryDetails)
+      activate OrderMgr
+
+      OrderMgr -> DB: beginTransaction()
+      activate DB
+
+      OrderMgr -> InvMgr: validateInventory(cartItems)
+      activate InvMgr
+
+      InvMgr -> DB: checkStockLevels(productIds)
+      DB --> InvMgr: stockLevels
+
+      alt All items still in stock
+        InvMgr -> InvMgr: reserveInventory(cartItems)
+        InvMgr -> DB: updateInventory(productId, -quantity)
+        InvMgr --> OrderMgr: inventoryReserved
+        deactivate InvMgr
+
+        OrderMgr -> Order**: create(buyerId, totalAmount, status="Pending")
+
+        OrderMgr -> DB: insertOrder(order)
+        DB --> OrderMgr: orderId
+
+        loop For each cart item
+          OrderMgr -> OrderItem**: create(orderId, productId,\nquantity, price)
+          OrderMgr -> DB: insertOrderItem(orderItem)
+        end loop
+
+        OrderMgr --> UI: OrderCreated(orderId)
+
+        UI -> PaymentProc: processPayment(orderId, amount, cardDetails)
+        activate PaymentProc
+
+        PaymentProc -> PaymentProc: validatePaymentData(cardDetails)
+
+        PaymentProc -> Stripe: createPaymentIntent(amount, currency)
+        activate Stripe
+
+        alt Payment successful
+          Stripe -> Stripe: processCard(cardDetails)
+          Stripe --> PaymentProc: PaymentSuccess(stripeToken)
+          deactivate Stripe
+
+          PaymentProc -> Payment**: create(orderId, amount,\nstripeToken, status="Completed")
+
+          PaymentProc -> DB: savePayment(payment)
+          DB --> PaymentProc: paymentId
+
+          PaymentProc -> OrderMgr: confirmPayment(orderId, paymentId)
+
+          OrderMgr -> Order: updateStatus("Confirmed")
+          OrderMgr -> DB: updateOrderStatus(orderId, "Confirmed")
+
+          OrderMgr -> DB: commitTransaction()
+          deactivate DB
+
+          OrderMgr --> PaymentProc: paymentConfirmed
+          PaymentProc --> UI: PaymentSuccess(orderId, paymentId)
+          deactivate PaymentProc
+
+          UI -> Notifier: sendOrderConfirmation(buyerId, orderId)
+          activate Notifier
+
+          Notifier -> DB: getUserEmail(buyerId)
+          activate DB
+          DB --> Notifier: email
+          deactivate DB
+
+          Notifier -> Notifier: renderEmailTemplate(orderDetails)
+          Notifier -> Notifier: sendEmail(email, subject, body)
+          deactivate Notifier
+
+          UI -> Notifier: notifyFarmers(order)
+          activate Notifier
+
+          loop For each unique farm in order
+            Notifier -> DB: getFarmerContact(farmId)
+            activate DB
+            DB --> Notifier: farmerEmail
+            deactivate DB
+
+            Notifier -> Notifier: sendNewOrderNotification(farmerEmail)
+          end loop
+          deactivate Notifier
+
+          OrderMgr --> UI: OrderCompleted
+          deactivate OrderMgr
+
+          UI -> UI: displayOrderConfirmation(orderId)
+          UI -> UI: clearCart()
+          UI --> User: "Order placed successfully!\nOrder #12345"
+
+          User -> UI: View order status
+
+          UI -> DB: getOrderDetails(orderId)
+          activate DB
+          DB --> UI: orderDetails
+          deactivate DB
+
+          UI --> User: Display order tracking\n("Pending farmer confirmation")
+
+        else Payment declined
+          Stripe --> PaymentProc: PaymentDeclinedError
+          deactivate Stripe
+
+          PaymentProc -> Payment**: create(orderId, amount,\nstatus="Failed")
+          PaymentProc -> DB: savePayment(payment)
+          activate DB
+          DB --> PaymentProc: paymentId
+          deactivate DB
+
+          PaymentProc -> PaymentProc: logFailure(error)
+
+          PaymentProc -> OrderMgr: paymentFailed(orderId)
+
+          OrderMgr -> InvMgr: releaseReservation(cartItems)
+          activate InvMgr
+          InvMgr -> DB: updateInventory(productId, +quantity)
+          activate DB
+          DB --> InvMgr: updated
+          deactivate DB
+          deactivate InvMgr
+
+          OrderMgr -> DB: rollbackTransaction()
+          activate DB
+          DB --> OrderMgr: rolledBack
+          deactivate DB
+
+          OrderMgr --> PaymentProc: orderCancelled
+          deactivate OrderMgr
+
+          PaymentProc --> UI: PaymentFailedError("Payment declined")
+          deactivate PaymentProc
+
+          UI --> User: Display error\n"Payment declined.\nPlease try another card."
+
+          alt User tries different payment method
+            User -> UI: Enter new card details
+            note right: Retry payment process
+          else User saves cart and exits
+            UI -> UI: saveCartForLater()
+            UI --> User: Cart saved
+          end
+        end
+
+      else Product out of stock
+        InvMgr -> InvMgr: detectStockChange()
+        InvMgr --> OrderMgr: InsufficientStockError
+        deactivate InvMgr
+
+        OrderMgr -> DB: rollbackTransaction()
+        activate DB
+        DB --> OrderMgr: rolledBack
+        deactivate DB
+
+        OrderMgr --> UI: StockError("Item sold out")
+        deactivate OrderMgr
+
+        UI -> UI: removeUnavailableItems(cart)
+        UI --> User: "Sorry, item now sold out"
+
+        alt Cart empty
+          UI --> User: "Cart is empty"
+        else Cart has remaining items
+          UI -> UI: displayUpdatedCart()
+          UI --> User: Show updated cart
+        end
+      end
+
+    else Payment inputs invalid
+      UI -> UI: highlightErrors(fields)
+      UI --> User: "Please enter valid card details"
+    end
+
+  else Form validation fails
+    UI -> UI: highlightErrors(fields)
+    UI --> User: Display validation errors
+  end
+
+else Quantity exceeds stock
+  InvMgr --> UI: available=false, maxQuantity
+  deactivate InvMgr
+
+  UI --> User: Error: "Only X lbs available"
+end
+
+deactivate UI
+
+note right of Stripe
+  PCI-DSS Compliant
+  Card details tokenized
+  Never stored in system
+end note
+
+note right of DB
+  Atomic transaction ensures:
+  - Order creation
+  - Inventory update
+  - Payment processing
+  all succeed or all fail
+end note
+
+@enduml

@@ -1,0 +1,528 @@
+@startuml SUFMS_Class_Diagram
+title Smart Urban Farming Management System - Class Diagram
+skinparam linetype ortho
+
+' ==================== ENTITY CLASSES ====================
+
+package "Entity Classes" <<Rectangle>> {
+
+  class User <<entity>> {
+    - userId: UUID
+    - email: String
+    - passwordHash: String
+    - firstName: String
+    - lastName: String
+    - userType: UserType {Farmer, Gardener, Consultant, Consumer, Restaurant, Admin}
+    - profilePhoto: String
+    - location: String
+    - createdAt: DateTime
+    - lastLogin: DateTime
+    - status: AccountStatus {Active, Pending, Suspended}
+    --
+    + register(): boolean
+    + login(email: String, password: String): AuthToken
+    + updateProfile(data: ProfileData): boolean
+    + resetPassword(newPassword: String): boolean
+    + verifyEmail(token: String): boolean
+  }
+
+  class Farm <<entity>> {
+    - farmId: UUID
+    - userId: UUID
+    - name: String
+    - size: float
+    - location: GeoCoordinates
+    - farmType: FarmType {Indoor, Outdoor, Rooftop, Vertical}
+    - description: String
+    - photos: List<String>
+    - createdAt: DateTime
+    --
+    + create(): boolean
+    + update(data: FarmData): boolean
+    + delete(): boolean
+    + addPhoto(photoUrl: String): boolean
+    + getActiveSeasons(): List<Season>
+  }
+
+  class Crop <<entity>> {
+    - cropId: UUID
+    - farmId: UUID
+    - cropType: String
+    - variety: String
+    - plantingDate: Date
+    - expectedHarvestDate: Date
+    - actualHarvestDate: Date
+    - quantity: float
+    - status: CropStatus {Planted, Growing, Harvested, Failed}
+    --
+    + plant(): boolean
+    + harvest(actualQuantity: float): boolean
+    + updateStatus(newStatus: CropStatus): boolean
+    + getDaysToHarvest(): int
+    + predictYield(): float
+  }
+
+  class Sensor <<entity>> {
+    - sensorId: UUID
+    - farmId: UUID
+    - sensorType: SensorType {SoilMoisture, pH, Temperature, Humidity, Light}
+    - model: String
+    - installationDate: Date
+    - calibrationDate: Date
+    - status: SensorStatus {Online, Offline, Error}
+    - lastReading: DateTime
+    --
+    + register(): boolean
+    + calibrate(): boolean
+    + updateStatus(status: SensorStatus): void
+    + getLatestReading(): SensorReading
+    + checkHealth(): SensorHealthStatus
+  }
+
+  class SensorReading <<entity>> {
+    - readingId: UUID
+    - sensorId: UUID
+    - value: float
+    - timestamp: DateTime
+    - unit: String
+    --
+    + store(): boolean
+    + validate(): boolean
+    + isOutlier(): boolean
+  }
+
+  class Threshold <<entity>> {
+    - thresholdId: UUID
+    - sensorId: UUID
+    - cropType: String
+    - minValue: float
+    - maxValue: float
+    - alertEnabled: boolean
+    --
+    + set(min: float, max: float): boolean
+    + isViolated(value: float): boolean
+    + getDefaultForCrop(cropType: String): Threshold
+  }
+
+  class Alert <<entity>> {
+    - alertId: UUID
+    - sensorId: UUID
+    - farmId: UUID
+    - userId: UUID
+    - alertType: AlertType
+    - severity: Severity {Warning, Critical}
+    - message: String
+    - timestamp: DateTime
+    - status: AlertStatus {Active, Resolved}
+    --
+    + create(): boolean
+    + resolve(): boolean
+    + escalate(): boolean
+    + acknowledge(): boolean
+  }
+
+  class Task <<entity>> {
+    - taskId: UUID
+    - farmId: UUID
+    - userId: UUID
+    - title: String
+    - description: String
+    - taskType: TaskType {Watering, Fertilizing, Pruning, Harvesting}
+    - dueDate: DateTime
+    - completed: boolean
+    - recurring: boolean
+    - recurrencePattern: String
+    --
+    + create(): boolean
+    + complete(): boolean
+    + setRecurrence(pattern: String): boolean
+    + sendReminder(): boolean
+  }
+
+  class Product <<entity>> {
+    - productId: UUID
+    - farmId: UUID
+    - cropType: String
+    - name: String
+    - description: String
+    - price: float
+    - quantity: float
+    - unit: String
+    - photos: List<String>
+    - certifications: List<Certification>
+    - availabilityDate: Date
+    - status: ProductStatus {InStock, PreOrder, SoldOut}
+    --
+    + list(): boolean
+    + update(data: ProductData): boolean
+    + updateInventory(quantity: float): boolean
+    + delist(): boolean
+    + getAverageRating(): float
+  }
+
+  class Order <<entity>> {
+    - orderId: UUID
+    - buyerId: UUID
+    - orderDate: DateTime
+    - totalAmount: float
+    - tax: float
+    - status: OrderStatus {Pending, Confirmed, Ready, Completed, Cancelled}
+    - deliveryMethod: DeliveryMethod {Pickup, Delivery}
+    - deliveryDate: Date
+    - paymentStatus: PaymentStatus
+    --
+    + create(): boolean
+    + updateStatus(newStatus: OrderStatus): boolean
+    + cancel(): boolean
+    + calculateTotal(): float
+    + sendNotification(recipient: User): boolean
+  }
+
+  class OrderItem <<entity>> {
+    - orderItemId: UUID
+    - orderId: UUID
+    - productId: UUID
+    - quantity: float
+    - priceAtPurchase: float
+    - farmId: UUID
+    --
+    + addToOrder(): boolean
+    + calculateSubtotal(): float
+  }
+
+  class Payment <<entity>> {
+    - paymentId: UUID
+    - orderId: UUID
+    - amount: float
+    - paymentMethod: PaymentMethod {CreditCard, DebitCard}
+    - stripeToken: String
+    - status: PaymentStatus {Pending, Completed, Failed, Refunded}
+    - timestamp: DateTime
+    --
+    + process(): boolean
+    + refund(): boolean
+    + getReceipt(): Receipt
+  }
+
+  class Review <<entity>> {
+    - reviewId: UUID
+    - productId: UUID
+    - farmId: UUID
+    - userId: UUID
+    - rating: int
+    - comment: String
+    - createdAt: DateTime
+    --
+    + submit(): boolean
+    + update(rating: int, comment: String): boolean
+    + delete(): boolean
+  }
+
+  class PestDetectionRecord <<entity>> {
+    - recordId: UUID
+    - userId: UUID
+    - farmId: UUID
+    - imageUrl: String
+    - pestName: String
+    - confidence: float
+    - timestamp: DateTime
+    - treatmentApplied: String
+    --
+    + save(): boolean
+    + getTreatmentRecommendations(): List<Treatment>
+  }
+
+  class IrrigationSchedule <<entity>> {
+    - scheduleId: UUID
+    - farmId: UUID
+    - cropId: UUID
+    - scheduledTime: DateTime
+    - waterAmount: float
+    - reason: String
+    - completed: boolean
+    --
+    + generate(): boolean
+    + adjust(weatherData: WeatherData): boolean
+    + markCompleted(): boolean
+  }
+}
+
+' ==================== BOUNDARY CLASSES ====================
+
+package "Boundary Classes (UI Controllers & APIs)" <<Rectangle>> {
+
+  class AuthenticationUI <<boundary>> {
+    + displayLoginForm(): void
+    + displayRegistrationForm(): void
+    + showError(message: String): void
+    + redirectToDashboard(): void
+  }
+
+  class DashboardUI <<boundary>> {
+    + displayFarmList(farms: List<Farm>): void
+    + displaySensorData(readings: List<SensorReading>): void
+    + displayAlerts(alerts: List<Alert>): void
+    + updateRealTime(): void
+  }
+
+  class MonitoringUI <<boundary>> {
+    + displaySensorDashboard(farmId: UUID): void
+    + displayHistoricalChart(sensorId: UUID, range: DateRange): void
+    + showThresholdConfig(sensor: Sensor): void
+    + highlightCriticalSensor(sensorId: UUID): void
+  }
+
+  class PestDetectionUI <<boundary>> {
+    + displayCameraInterface(): void
+    + showAnalysisProgress(): void
+    + displayDetectionResults(result: PestDetectionResult): void
+    + showTreatmentRecommendations(treatments: List<Treatment>): void
+  }
+
+  class MarketplaceUI <<boundary>> {
+    + displayProductListings(products: List<Product>): void
+    + displayProductDetails(product: Product): void
+    + displayShoppingCart(items: List<OrderItem>): void
+    + displayCheckoutForm(): void
+    + showOrderConfirmation(orderId: UUID): void
+  }
+
+  class FarmManagementUI <<boundary>> {
+    + displayFarmForm(): void
+    + displayCropPlanningCalendar(crops: List<Crop>): void
+    + displayTaskList(tasks: List<Task>): void
+    + showCropDetails(crop: Crop): void
+  }
+
+  class ReportsUI <<boundary>> {
+    + displayPerformanceDashboard(metrics: FarmMetrics): void
+    + displaySustainabilityMetrics(metrics: SustainabilityData): void
+    + exportToPDF(reportData: ReportData): void
+    + exportToCSV(data: List<DataRow>): void
+  }
+
+  class SensorAPI <<boundary>> {
+    + receiveSensorData(data: SensorData): Response
+    + getSensorReadings(sensorId: UUID, range: DateRange): List<SensorReading>
+    + registerSensor(sensorData: SensorRegistration): Response
+    + updateSensorStatus(sensorId: UUID, status: SensorStatus): Response
+  }
+
+  class MarketplaceAPI <<boundary>> {
+    + searchProducts(criteria: SearchCriteria): List<Product>
+    + getProductDetails(productId: UUID): Product
+    + createOrder(orderData: OrderData): Order
+    + processPayment(paymentData: PaymentData): PaymentResult
+  }
+
+  class AIAPI <<boundary>> {
+    + detectPest(imageData: ImageData): PestDetectionResult
+    + recommendCrops(farmData: FarmData): List<CropRecommendation>
+    + predictYield(cropData: CropData): YieldPrediction
+    + chatWithAssistant(query: String, context: ChatContext): String
+  }
+}
+
+' ==================== CONTROL CLASSES ====================
+
+package "Control Classes (Business Logic)" <<Rectangle>> {
+
+  class AuthenticationManager <<control>> {
+    - jwtSecret: String
+    --
+    + authenticateUser(email: String, password: String): AuthToken
+    + registerUser(userData: UserData): User
+    + validateToken(token: String): boolean
+    + sendVerificationEmail(user: User): boolean
+    + hashPassword(password: String): String
+    + resetPassword(userId: UUID, newPassword: String): boolean
+  }
+
+  class SensorDataProcessor <<control>> {
+    --
+    + ingestSensorData(reading: SensorReading): boolean
+    + validateReading(reading: SensorReading): boolean
+    + detectOutliers(reading: SensorReading): boolean
+    + storeReading(reading: SensorReading): boolean
+    + checkThresholds(reading: SensorReading): ThresholdStatus
+    + aggregateReadings(sensorId: UUID, period: TimePeriod): AggregatedData
+  }
+
+  class AlertManager <<control>> {
+    --
+    + evaluateThreshold(reading: SensorReading, threshold: Threshold): Alert
+    + createAlert(alertData: AlertData): Alert
+    + sendNotification(alert: Alert, channels: List<NotificationChannel>): boolean
+    + resolveAlert(alertId: UUID): boolean
+    + checkQuietHours(user: User): boolean
+    + escalateAlert(alertId: UUID): boolean
+  }
+
+  class PestDetectionManager <<control>> {
+    - mlModelEndpoint: String
+    --
+    + analyzeImage(image: ImageData): PestDetectionResult
+    + preprocessImage(image: ImageData): ProcessedImage
+    + classifyPest(features: FeatureVector): Classification
+    + getTreatmentRecommendations(pestName: String): List<Treatment>
+    + saveDetectionRecord(record: PestDetectionRecord): boolean
+    + improveModel(feedback: UserFeedback): boolean
+  }
+
+  class IrrigationScheduler <<control>> {
+    --
+    + generateSchedule(farm: Farm, weatherData: WeatherData): IrrigationSchedule
+    + adjustScheduleForWeather(schedule: IrrigationSchedule, forecast: WeatherForecast): IrrigationSchedule
+    + calculateWaterNeeds(crop: Crop, soilMoisture: float): float
+    + sendWateringReminder(schedule: IrrigationSchedule): boolean
+    + optimizeWaterUsage(farm: Farm): WaterOptimizationPlan
+  }
+
+  class CropRecommendationEngine <<control>> {
+    --
+    + recommendCrops(location: GeoCoordinates, season: Season, soilType: String): List<CropRecommendation>
+    + analyzeHistoricalData(farmId: UUID): HistoricalAnalysis
+    + calculateSuccessRate(cropType: String, conditions: GrowingConditions): float
+    + rankRecommendations(recommendations: List<CropRecommendation>): List<CropRecommendation>
+  }
+
+  class YieldPredictor <<control>> {
+    - mlModel: Model
+    --
+    + predictYield(crop: Crop, sensorData: List<SensorReading>): YieldPrediction
+    + updatePrediction(cropId: UUID): YieldPrediction
+    + calculateConfidenceInterval(prediction: float): ConfidenceInterval
+    + trainModel(historicalData: List<HarvestRecord>): Model
+  }
+
+  class OrderManager <<control>> {
+    --
+    + createOrder(buyerId: UUID, items: List<OrderItem>): Order
+    + validateInventory(items: List<OrderItem>): boolean
+    + calculateTotal(items: List<OrderItem>, location: String): float
+    + updateOrderStatus(orderId: UUID, status: OrderStatus): boolean
+    + notifyStakeholders(order: Order): boolean
+    + cancelOrder(orderId: UUID): boolean
+  }
+
+  class PaymentProcessor <<control>> {
+    - stripeAPI: StripeAPI
+    --
+    + processPayment(paymentData: PaymentData): PaymentResult
+    + validatePaymentData(data: PaymentData): boolean
+    + handlePaymentSuccess(payment: Payment): boolean
+    + handlePaymentFailure(payment: Payment, error: Error): boolean
+    + refundPayment(paymentId: UUID): boolean
+  }
+
+  class InventoryManager <<control>> {
+    --
+    + checkAvailability(productId: UUID, quantity: float): boolean
+    + updateStock(productId: UUID, quantityDelta: float): boolean
+    + reserveInventory(items: List<OrderItem>): boolean
+    + releaseReservation(items: List<OrderItem>): boolean
+    + sendLowStockAlert(product: Product): boolean
+  }
+
+  class SearchEngine <<control>> {
+    --
+    + searchProducts(query: String, filters: SearchFilters): List<Product>
+    + rankResults(results: List<Product>, criteria: RankingCriteria): List<Product>
+    + calculateRelevanceScore(product: Product, query: String): float
+    + applyLocationFilter(products: List<Product>, location: GeoCoordinates, radius: float): List<Product>
+  }
+
+  class NotificationService <<control>> {
+    --
+    + sendEmail(recipient: String, subject: String, body: String): boolean
+    + sendSMS(phoneNumber: String, message: String): boolean
+    + sendPushNotification(userId: UUID, notification: PushNotification): boolean
+    + queueNotification(notification: Notification, deliveryTime: DateTime): boolean
+    + retryFailed(notification: Notification): boolean
+  }
+
+  class ReportGenerator <<control>> {
+    --
+    + generateFarmReport(farmId: UUID, period: TimePeriod): Report
+    + generateSalesReport(farmId: UUID, period: TimePeriod): Report
+    + generateSustainabilityReport(farmId: UUID): SustainabilityReport
+    + exportToPDF(report: Report): File
+    + exportToCSV(data: List<DataRow>): File
+  }
+}
+
+' ==================== RELATIONSHIPS ====================
+
+' User relationships
+User "1" -- "0..*" Farm : owns >
+User "1" -- "0..*" Order : places >
+User "1" -- "0..*" Review : writes >
+User "1" -- "0..*" Task : creates >
+User "1" -- "0..*" Alert : receives >
+
+' Farm relationships
+Farm "1" *-- "0..*" Crop : contains >
+Farm "1" *-- "0..*" Sensor : has >
+Farm "1" -- "0..*" Product : lists >
+Farm "1" -- "0..*" PestDetectionRecord : records >
+Farm "1" -- "0..*" IrrigationSchedule : has >
+
+' Sensor relationships
+Sensor "1" -- "0..*" SensorReading : generates >
+Sensor "1" -- "1" Threshold : configured with >
+Sensor "1" -- "0..*" Alert : triggers >
+
+' Crop relationships
+Crop "1" -- "0..*" IrrigationSchedule : has >
+Crop "1" -- "0..1" Product : becomes >
+
+' Order relationships
+Order "1" *-- "1..*" OrderItem : contains >
+Order "1" -- "1" Payment : paid by >
+OrderItem "*" -- "1" Product : references >
+
+' Product relationships
+Product "1" -- "0..*" Review : has >
+
+' Boundary to Control relationships
+AuthenticationUI ..> AuthenticationManager : uses
+DashboardUI ..> SensorDataProcessor : uses
+DashboardUI ..> AlertManager : uses
+MonitoringUI ..> SensorDataProcessor : uses
+MonitoringUI ..> AlertManager : uses
+PestDetectionUI ..> PestDetectionManager : uses
+MarketplaceUI ..> SearchEngine : uses
+MarketplaceUI ..> OrderManager : uses
+MarketplaceUI ..> PaymentProcessor : uses
+SensorAPI ..> SensorDataProcessor : uses
+MarketplaceAPI ..> SearchEngine : uses
+MarketplaceAPI ..> OrderManager : uses
+MarketplaceAPI ..> PaymentProcessor : uses
+AIAPI ..> PestDetectionManager : uses
+AIAPI ..> CropRecommendationEngine : uses
+AIAPI ..> YieldPredictor : uses
+FarmManagementUI ..> IrrigationScheduler : uses
+ReportsUI ..> ReportGenerator : uses
+
+' Control to Entity relationships
+AuthenticationManager ..> User : manages
+SensorDataProcessor ..> SensorReading : processes
+SensorDataProcessor ..> Sensor : monitors
+AlertManager ..> Alert : creates
+AlertManager ..> NotificationService : uses
+PestDetectionManager ..> PestDetectionRecord : creates
+IrrigationScheduler ..> IrrigationSchedule : generates
+OrderManager ..> Order : manages
+OrderManager ..> OrderItem : manages
+OrderManager ..> InventoryManager : uses
+PaymentProcessor ..> Payment : processes
+InventoryManager ..> Product : updates
+SearchEngine ..> Product : searches
+CropRecommendationEngine ..> Crop : analyzes
+YieldPredictor ..> Crop : predicts
+ReportGenerator ..> Farm : analyzes
+
+' Generalization (inheritance)
+note "Multiplicities:\n1 = exactly one\n0..1 = zero or one\n0..* = zero or many\n1..* = one or many\n\nRelationship Types:\n- Association (line)\n-- Aggregation (hollow diamond)\n*-- Composition (filled diamond)\n..> Dependency (dashed arrow)\n<|-- Inheritance" as N1
+
+@enduml

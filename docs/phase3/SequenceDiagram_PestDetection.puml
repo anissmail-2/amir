@@ -1,0 +1,204 @@
+@startuml Sequence_Detect_Pest_Disease
+title Sequence Diagram: Detect Pest or Disease from Plant Photo (UC-017)
+
+actor "Urban Farmer" as User
+boundary "PestDetectionUI" as UI
+control "PestDetectionManager" as Manager
+control "NotificationService" as Notifier
+entity "PestDetectionRecord" as Record
+entity "Task" as Task
+entity "Farm" as Farm
+database "PostgreSQL" as DB
+participant "AI/ML Service\n(TensorFlow)" as AI
+participant "Cloud Storage\n(AWS S3)" as Storage
+
+User -> UI: Navigate to Pest Detection feature
+activate UI
+
+UI -> UI: displayCameraInterface()
+UI --> User: Show camera/upload options
+
+User -> UI: Capture or upload photo
+note right: Smartphone camera\nor gallery selection
+
+UI -> UI: receiveImage(imageData)
+UI -> UI: validateImage(format, size, resolution)
+
+alt Valid image (JPG/PNG/HEIC, <10MB, ≥300x300px)
+  UI -> UI: showProgress("Analyzing...")
+
+  UI -> Manager: analyzeImage(imageData, userId, farmId)
+  activate Manager
+
+  Manager -> Manager: preprocessImage(imageData)
+  note right: Resize, normalize,\nformat conversion
+
+  Manager -> Storage: uploadImage(processedImage)
+  activate Storage
+  Storage --> Manager: imageUrl
+  deactivate Storage
+
+  Manager -> AI: sendImageForAnalysis(imageUrl)
+  activate AI
+
+  alt ML Service available
+    AI -> AI: loadResNet50Model()
+    AI -> AI: extractFeatures(image)
+    AI -> AI: runClassification()
+    AI -> AI: generatePredictions()
+    note right: Top 3 predictions\nwith confidence scores
+
+    AI --> Manager: PestDetectionResult\n(predictions, confidenceScores)
+    deactivate AI
+
+    Manager -> Manager: parseResults(result)
+
+    alt Highest confidence ≥70%
+      Manager -> Manager: extractPrimaryIdentification()
+      note right: e.g., "Aphid Infestation" (92%)
+
+      Manager -> DB: getPestDetails(pestName)
+      activate DB
+      DB --> Manager: PestDetails\n(appearance, lifecycle, damage)
+      deactivate DB
+
+      Manager -> Manager: getTreatmentRecommendations(pestName)
+      note right: Organic, chemical,\npreventive measures
+
+      Manager -> Record**: create(userId, farmId, imageUrl,\npestName, confidence, timestamp)
+
+      Manager -> DB: savePestDetectionRecord(record)
+      activate DB
+      DB --> Manager: recordId
+      deactivate DB
+
+      Manager --> UI: DetectionResponse\n(pestName, confidence, details, treatments)
+      deactivate Manager
+
+      UI -> UI: displayIdentification(pestName, confidence)
+      UI -> UI: displayPestDetails(details)
+
+      UI -> UI: displayTreatmentRecommendations()
+
+      loop For each treatment category
+        UI -> UI: showTreatmentOption(treatment)
+        note right: Organic: neem oil, ladybugs\nChemical: insecticides\nPreventive: crop rotation
+      end loop
+
+      UI --> User: Show detection results\nand treatment options
+
+      alt User creates treatment task
+        User -> UI: Click "Create Task" and\nselect treatment
+
+        UI -> Task**: create(farmId, userId,\n"Apply neem oil spray")
+
+        UI -> DB: saveTask(task)
+        activate DB
+        DB --> UI: taskId
+        deactivate DB
+
+        UI -> Notifier: scheduleReminder(task)
+        activate Notifier
+        Notifier --> UI: reminderScheduled
+        deactivate Notifier
+
+        UI --> User: Task created successfully
+      else User declines task creation
+        UI -> UI: logUserDecision()
+      end
+
+      alt User consents to save image
+        User -> UI: Agree to improve model
+
+        UI -> DB: markImageForTraining(recordId)
+        activate DB
+        DB --> UI: success
+        deactivate DB
+
+        note right: Anonymized image used\nfor monthly model retraining
+      else User declines
+        UI -> Storage: deleteImage(imageUrl)
+        activate Storage
+        Storage --> UI: deleted
+        deactivate Storage
+      end
+
+    else Confidence <70%
+      Manager -> Manager: extractTopPredictions(3)
+      note right: Multiple possibilities,\nlow confidence
+
+      Manager -> Record**: create(userId, farmId, imageUrl,\n"Unidentified", topConfidence, timestamp)
+
+      Manager -> DB: savePestDetectionRecord(record)
+      activate DB
+      DB --> Manager: recordId
+      deactivate DB
+
+      Manager --> UI: LowConfidenceResponse\n(topPredictions, suggestions)
+      deactivate Manager
+
+      UI -> UI: displayMessage("Unable to confidently identify")
+      UI -> UI: showTopPossibilities(predictions)
+      UI -> UI: suggestActions()
+      note right: 1. Retake clearer photo\n2. Post to community forum\n3. Try again later
+
+      UI --> User: Show low confidence results\nand suggestions
+
+      alt User retakes photo
+        User -> UI: Click "Retake Photo"
+        UI -> UI: reopenCamera()
+        note right: Return to camera interface
+      else User posts to forum
+        User -> UI: Click "Post to Forum"
+        UI -> UI: navigateToCommunityForum()
+        UI -> UI: autopopulatePost(imageUrl, symptoms)
+        UI --> User: Forum post interface ready
+      else User tries later
+        UI -> UI: saveForLaterAnalysis()
+        UI --> User: "Saved for later"
+      end
+    end
+
+  else ML Service unavailable
+    AI --> Manager: ServiceUnavailableError
+    deactivate AI
+    deactivate Manager
+
+    UI -> UI: displayError("Service temporarily unavailable")
+    UI -> UI: logError(error)
+
+    UI -> DB: queueImageForLaterProcessing(imageUrl, userId)
+    activate DB
+    DB --> UI: queueId
+    deactivate DB
+
+    UI --> User: Show error and alternatives
+
+    alt User tries again later
+      User -> UI: Click "Try Again Later"
+      UI --> User: "Image queued.\nYou'll be notified when complete."
+
+      note over Notifier
+        When service recovers,
+        process queued images
+        and notify users
+      end note
+
+    else User posts to forum
+      User -> UI: Click "Post to Forum"
+      UI -> UI: navigateToCommunityForum()
+      UI --> User: Forum interface
+    end
+  end
+
+else Invalid image
+  UI -> UI: displayError("Please upload JPG/PNG under 10MB")
+  UI --> User: Show error message
+
+  User -> UI: Select different image
+  note right: Retry with valid image
+end
+
+deactivate UI
+
+@enduml

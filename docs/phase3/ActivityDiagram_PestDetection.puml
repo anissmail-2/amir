@@ -1,0 +1,150 @@
+@startuml Activity_Detect_Pest_Disease
+title Activity Diagram: Detect Pest or Disease from Plant Photo (UC-017)
+
+|User|
+start
+:Suspect plant health issue;
+:Navigate to "Pest Detection" feature;
+
+|System|
+:Display camera upload interface;
+
+|User|
+if (Take new photo or upload?) then (take new)
+  :Capture photo of affected plant\nusing smartphone camera;
+else (upload)
+  :Select existing photo from gallery;
+endif
+
+|System|
+:Receive image;
+:Validate image format and size;
+
+if (Valid format (JPG/PNG/HEIC)\nAND size <10MB\nAND resolution ≥300x300px?) then (yes)
+  :Display "Analyzing..." loading indicator;
+
+  |AI/ML Service|
+  :Send image to TensorFlow\nML model via API;
+
+  if (ML service available?) then (yes)
+    :Preprocess image\n(resize, normalize);
+    :Run ResNet-50 CNN model;
+    :Extract feature vectors;
+    :Classify pest/disease;
+    :Generate top 3 predictions\nwith confidence scores;
+    :Return results to system;
+
+    |System|
+    :Receive identification results;
+
+    if (Highest confidence ≥70%?) then (yes)
+      :Display primary identification\n(pest/disease name);
+      :Show confidence score (e.g., 92%);
+
+      fork
+        :Display pest/disease details\n(appearance, lifecycle, damage pattern);
+      fork again
+        :Show treatment recommendations;
+
+        fork
+          :Organic options\n(neem oil, introduce ladybugs);
+        fork again
+          :Chemical options\n(specific insecticides);
+        fork again
+          :Preventive measures;
+        end fork
+      end fork
+
+      |User|
+      if (Create treatment task?) then (yes)
+        :Select treatment method\n(e.g., "Apply neem oil spray");
+
+        |System|
+        :Create task in calendar;
+        :Set task date and reminders;
+        :Save task to database;
+        note right: Task created with\nrecommended treatment
+      else (no)
+        :User takes note of recommendations;
+      endif
+
+      |System|
+      :Save detection record\nin farm history;
+      :Store: image, identification,\nconfidence, timestamp, farm ID;
+
+      |User|
+      if (Save image to improve model?) then (yes)
+        |System|
+        :Store anonymized image\nfor model retraining;
+        note right: User consent obtained\nfor data collection
+      else (no)
+        :Image not saved;
+      endif
+
+      :User proceeds with treatment;
+
+    else (confidence <70%)
+      :Display "Unable to confidently identify";
+      :Show top 3 possible matches\nwith confidence scores;
+      :Suggest actions;
+
+      |User|
+      if (What action to take?) then (retake photo)
+        :Take clearer photo\nwith better lighting;
+        -[#blue]-> Validate image format and size;
+      else (post to forum)
+        |System|
+        :Navigate to community forum;
+        :Auto-populate post with image;
+        :User describes symptoms;
+        :Submit for expert review;
+        stop
+      else (try later)
+        :Save for later analysis;
+        stop
+      endif
+    endif
+
+  else (service unavailable)
+    |System|
+    :Display error\n"Service temporarily unavailable";
+    :Log failure for admin review;
+    :Suggest alternatives;
+
+    |User|
+    if (What to do?) then (try again later)
+      :Queue image for later processing;
+      :System will notify when complete;
+      stop
+    else (post to forum)
+      :Navigate to community forum;
+      :Post image for human expert review;
+      stop
+    endif
+  endif
+
+else (invalid)
+  |System|
+  :Display error message\n"Please upload JPG/PNG under 10MB";
+
+  |User|
+  :Select different image;
+  -[#blue]-> Validate image format and size;
+endif
+
+stop
+
+note right of System
+  **Performance Requirements:**
+  - Image analysis <10 seconds
+  - Min 80% accuracy for common pests
+  - Offline mode: queue for later
+
+  **ML Model Details:**
+  - ResNet-50 architecture
+  - Trained on 10,000+ images
+  - 50+ common pests/diseases
+  - Monthly model retraining
+end note
+
+@enduml

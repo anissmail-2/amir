@@ -1,0 +1,128 @@
+@startuml Activity_Monitor_Real_Time_Sensor_Data
+title Activity Diagram: Monitor Real-Time Sensor Data (UC-009)
+
+|User|
+start
+:Navigate to "Monitoring Dashboard";
+
+|System|
+:Display farm selection dropdown;
+
+|User|
+:Select farm from dropdown;
+
+|System|
+:Query InfluxDB for latest sensor readings;
+
+if (Sensor data available?) then (yes)
+  :Retrieve current sensor values\n(soil moisture, pH, temp, humidity, light);
+  :Calculate status for each sensor\n(compare against thresholds);
+
+  fork
+    :Display soil moisture reading;
+  fork again
+    :Display pH reading;
+  fork again
+    :Display temperature reading;
+  fork again
+    :Display humidity reading;
+  fork again
+    :Display light level reading;
+  end fork
+
+  :Show color-coded status indicators\n(green=optimal, yellow=warning, red=critical);
+  :Display "Last Updated" timestamp\nfor each sensor;
+
+  if (Any critical thresholds exceeded?) then (yes)
+    :Highlight sensors in red\nwith warning icon;
+    :Show alert message\n(e.g., "Soil moisture critically low");
+    :Display recommended action;
+
+    |User|
+    if (Create task for action?) then (yes)
+      |System|
+      :Create task\n(e.g., "Water plants");
+      :Save task to database;
+    else (no)
+      :User acknowledges alert;
+    endif
+  else (no)
+    :All sensors within normal range;
+  endif
+
+  |User|
+  if (View detailed trend chart?) then (yes)
+    :Click on specific sensor;
+
+    |System|
+    if (Sufficient historical data?) then (yes)
+      :Query InfluxDB for\nlast 24 hours data;
+      :Render historical trend chart;
+      :Display chart to user;
+    else (no)
+      :Display message\n"Collecting data... Charts\navailable after 1 hour";
+    endif
+  else (no)
+    :Continue viewing dashboard;
+  endif
+
+  if (Check another sensor?) then (yes)
+    |System|
+    :Return to dashboard view;
+  else (no)
+  endif
+
+  if (Check other farms?) then (yes)
+    |User|
+    :Select different farm;
+    |System|
+    -[#blue]-> Retrieve current sensor values;
+  else (no)
+  endif
+
+else (no)
+  if (Sensor offline (no data >1 hour)?) then (yes)
+    :Show "Offline" indicator in red;
+    :Display last known value\nwith timestamp;
+
+    |User|
+    if (Troubleshoot sensor?) then (yes)
+      |System|
+      :Display connectivity diagnostics;
+      :Show sensor configuration;
+      :Provide troubleshooting tips;
+    else (no)
+      :User exits;
+    endif
+  else (no data at all)
+    :Display "No data" message;
+    :Prompt user to register sensors;
+
+    |User|
+    if (Register sensors now?) then (yes)
+      |System|
+      :Navigate to sensor registration;
+    else (no)
+      :User exits;
+    endif
+  endif
+endif
+
+|User|
+:Exit dashboard or\ncheck other features;
+stop
+
+note right
+  **Key Decision Points:**
+  1. Data availability check
+  2. Threshold violation detection
+  3. User action creation
+  4. Historical data availability
+  5. Multi-farm monitoring
+
+  **Auto-Update:**
+  Dashboard auto-refreshes
+  every 60 seconds
+end note
+
+@enduml

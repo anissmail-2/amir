@@ -1,0 +1,185 @@
+@startuml Sequence_Monitor_Real_Time_Sensor_Data
+title Sequence Diagram: Monitor Real-Time Sensor Data (UC-009)
+
+actor "Urban Farmer" as User
+boundary "MonitoringUI" as UI
+control "SensorDataProcessor" as Processor
+control "AlertManager" as AlertMgr
+entity "Farm" as Farm
+entity "Sensor" as Sensor
+entity "SensorReading" as Reading
+entity "Threshold" as Threshold
+entity "Alert" as Alert
+database "InfluxDB" as InfluxDB
+database "PostgreSQL" as DB
+
+User -> UI: Navigate to Monitoring Dashboard
+activate UI
+
+UI -> UI: Display farm selection dropdown
+UI -> DB: getFarmsByUser(userId)
+activate DB
+DB --> UI: List<Farm>
+deactivate DB
+
+UI --> User: Display farm list
+User -> UI: Select farm (farmId)
+
+UI -> Processor: getSensorData(farmId)
+activate Processor
+
+Processor -> DB: getSensorsByFarm(farmId)
+activate DB
+DB --> Processor: List<Sensor>
+deactivate DB
+
+loop For each sensor
+  Processor -> InfluxDB: getLatestReading(sensorId)
+  activate InfluxDB
+  InfluxDB --> Processor: SensorReading
+  deactivate InfluxDB
+
+  Processor -> Processor: validateReading(reading)
+
+  Processor -> DB: getThreshold(sensorId)
+  activate DB
+  DB --> Processor: Threshold
+  deactivate DB
+
+  Processor -> Processor: checkThreshold(reading, threshold)
+
+  alt Reading exceeds threshold
+    Processor -> AlertMgr: evaluateThreshold(reading, threshold)
+    activate AlertMgr
+
+    AlertMgr -> DB: checkActiveAlert(sensorId)
+    activate DB
+    DB --> AlertMgr: existingAlert (or null)
+    deactivate DB
+
+    alt No active alert OR last alert >1 hour ago
+      AlertMgr -> AlertMgr: determineSeverity(reading, threshold)
+
+      alt Critical (>20% beyond threshold)
+        AlertMgr -> Alert**: create(sensorId, "Critical", message)
+      else Warning (5-20% beyond threshold)
+        AlertMgr -> Alert**: create(sensorId, "Warning", message)
+      end
+
+      AlertMgr -> DB: saveAlert(alert)
+      activate DB
+      DB --> AlertMgr: alertId
+      deactivate DB
+
+      AlertMgr -> AlertMgr: sendNotification(alert, channels)
+      note right: Email, SMS, Push notification
+    else Active alert exists
+      AlertMgr -> DB: updateAlert(alertId, latestReading)
+      activate DB
+      DB --> AlertMgr: success
+      deactivate DB
+    end
+
+    deactivate AlertMgr
+  else Reading within normal range
+    alt Previous alert exists
+      Processor -> AlertMgr: resolveAlert(sensorId)
+      activate AlertMgr
+      AlertMgr -> DB: markAlertResolved(alertId)
+      activate DB
+      DB --> AlertMgr: success
+      deactivate DB
+      AlertMgr -> AlertMgr: sendAllClearNotification()
+      deactivate AlertMgr
+    end
+  end
+end
+
+Processor --> UI: SensorDataResponse\n(readings, status, alerts)
+deactivate Processor
+
+UI -> UI: renderDashboard(sensorData)
+
+loop For each sensor
+  UI -> UI: displayReading(sensor, value, timestamp)
+  UI -> UI: applyColorCoding(status)
+  note right: Green=optimal\nYellow=warning\nRed=critical
+end
+
+alt Critical threshold exceeded
+  UI -> UI: highlightCriticalSensor(sensorId)
+  UI -> UI: showAlertMessage(message)
+  UI -> UI: displayRecommendedAction()
+end
+
+UI --> User: Display dashboard with\nreal-time sensor data
+
+alt User clicks sensor for details
+  User -> UI: Click sensor (sensorId)
+
+  UI -> Processor: getHistoricalData(sensorId, last24Hours)
+  activate Processor
+
+  Processor -> InfluxDB: queryReadings(sensorId, timeRange)
+  activate InfluxDB
+  InfluxDB --> Processor: List<SensorReading>
+  deactivate InfluxDB
+
+  alt Sufficient data available
+    Processor -> Processor: aggregateData(readings)
+    Processor --> UI: HistoricalDataResponse
+    deactivate Processor
+
+    UI -> UI: renderTrendChart(data)
+    UI --> User: Display historical chart
+  else Insufficient data
+    Processor --> UI: InsufficientDataError
+    deactivate Processor
+    UI --> User: Show message:\n"Collecting data...\nCharts available after 1 hour"
+  end
+end
+
+alt User creates task for critical condition
+  User -> UI: Click "Create Task"
+
+  UI -> DB: createTask(farmId, userId, taskData)
+  activate DB
+  DB --> UI: taskId
+  deactivate DB
+
+  UI --> User: Task created:\n"Water plants"
+end
+
+alt Sensor offline (no data >1 hour)
+  UI -> UI: showOfflineIndicator(sensorId)
+  UI -> UI: displayLastKnownValue(timestamp)
+
+  User -> UI: Click "Check Sensor"
+
+  UI -> Processor: diagnoseSensor(sensorId)
+  activate Processor
+
+  Processor -> DB: getSensorConfig(sensorId)
+  activate DB
+  DB --> Processor: SensorConfig
+  deactivate DB
+
+  Processor -> Processor: checkConnectivity()
+  Processor -> Processor: checkBattery()
+  Processor -> Processor: checkLastCommunication()
+
+  Processor --> UI: DiagnosticsReport
+  deactivate Processor
+
+  UI --> User: Display diagnostics\nand troubleshooting tips
+end
+
+note over UI
+  Dashboard auto-refreshes
+  every 60 seconds via
+  WebSocket connection
+end note
+
+deactivate UI
+
+@enduml
