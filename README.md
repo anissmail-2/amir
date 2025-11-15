@@ -42,7 +42,7 @@ amir/
 | Phase 2 | Requirements Engineering | Oct 19, 2025 | ✅ Complete |
 | Phase 3 | System Analysis | Nov 2, 2025 | ✅ Complete |
 | Phase 4 | System Design | Nov 9, 2025 | ✅ Complete |
-| Phase 5 | Implementation & Testing | Nov 16, 2025 | 🔄 Pending |
+| Phase 5 | Implementation & Testing | Nov 16, 2025 | ✅ Complete |
 | Final | Live Demo & Presentation | Nov 17-21, 2025 | 🔄 Pending |
 
 ## 👥 Team Members
@@ -89,11 +89,41 @@ amir/
 - [Phase 2: Requirements Engineering](docs/phase2/Phase2_Requirements_Engineering.md)
 - [Phase 3: System Analysis (UML Diagrams)](docs/phase3/Phase3_System_Analysis.md)
 - [Phase 4: System Design](docs/phase4/Phase4_System_Design.md)
-- Phase 5: Implementation Guide (Coming Soon)
+- [Phase 5: Implementation & Testing](docs/phase5/Phase5_Implementation_Report.md)
 
-## 🚀 Getting Started (Phase 5)
+## 🚀 Getting Started
 
-Instructions for running the project will be added during Phase 5 (Implementation).
+### Prerequisites
+- Node.js v18+
+- PostgreSQL 15
+- Python 3.9+ (for IoT simulator)
+- Mosquitto MQTT broker
+
+### Backend Setup
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Edit .env with your database credentials
+createdb sufms_db
+npm run dev  # Runs on http://localhost:4000
+```
+
+### Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev  # Runs on http://localhost:5173
+```
+
+### IoT Simulator
+```bash
+cd iot-simulator
+pip install -r requirements.txt
+python sensor_simulator.py
+```
+
+See [Phase 5 Implementation Report](docs/phase5/Phase5_Implementation_Report.md) for detailed instructions.
 
 ## 📧 Contact
 
